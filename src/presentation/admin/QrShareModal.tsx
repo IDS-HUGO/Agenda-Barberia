@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { X, Download, Copy, Check, QrCode, Sparkles } from 'lucide-react';
+import { X, Download, Copy, Check, QrCode, Sparkles, ExternalLink } from 'lucide-react';
 import { useToast } from '../shared/ToastProvider';
 
 interface QrShareModalProps {
@@ -33,57 +33,99 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({ isOpen, onClose }) =
     const ctx = canvas.getContext('2d');
     const img = new Image();
 
-    // Alta resolución para imprimir en espejo de barbería (800x1000)
+    // Alta resolución para imprimir en espejo o mostrador (800x1000 px a 300 DPI)
     canvas.width = 800;
     canvas.height = 1000;
 
     img.onload = () => {
       if (!ctx) return;
-      // Fondo negro espacial
+      // Fondo negro premium
       ctx.fillStyle = '#090B0E';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Borde decorativo alien
+      // Borde decorativo verde neón
       ctx.strokeStyle = '#76C81C';
       ctx.lineWidth = 8;
       ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
 
-      // Título
+      // Título oficial
       ctx.fillStyle = '#FFFFFF';
       ctx.font = 'bold 44px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('BARBER & SHOPPING', canvas.width / 2, 120);
+      ctx.fillText('BARBER & SHOPPING', canvas.width / 2, 115);
 
       ctx.fillStyle = '#76C81C';
-      ctx.font = 'bold 26px sans-serif';
-      ctx.fillText('AGENDA TU CITA EN VIVO', canvas.width / 2, 170);
+      ctx.font = 'bold 24px sans-serif';
+      ctx.fillText('AGENDA TU CITA EN VIVO', canvas.width / 2, 160);
 
-      // Dibujar QR con padding blanco para lectura óptima de cámaras
-      const qrSize = 520;
+      // Marco blanco para lectura óptima de cualquier cámara de celular
+      const qrSize = 500;
       const qrX = (canvas.width - qrSize) / 2;
-      const qrY = 230;
+      const qrY = 210;
 
       ctx.fillStyle = '#FFFFFF';
       ctx.beginPath();
-      ctx.roundRect(qrX - 20, qrY - 20, qrSize + 40, qrSize + 40, 24);
+      ctx.roundRect(qrX - 25, qrY - 25, qrSize + 50, qrSize + 50, 28);
       ctx.fill();
 
       ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
 
-      // Subtítulo inferior
-      ctx.fillStyle = '#D1D5DB';
-      ctx.font = '22px sans-serif';
-      ctx.fillText('Escanea con la cámara de tu celular', canvas.width / 2, 850);
-      ctx.fillStyle = '#94A3B8';
-      ctx.font = '18px sans-serif';
-      ctx.fillText('Sin descargas • Sin registro • 100% Gratis', canvas.width / 2, 890);
+      const finishDownload = () => {
+        // Subtítulo inferior
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 24px sans-serif';
+        ctx.fillText('Escanea con la cámara de tu celular', canvas.width / 2, 825);
 
-      // Descargar
-      const link = document.createElement('a');
-      link.download = 'QR_Oficial_Barber_Y_Shopping.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      showToast('¡Código QR descargado en alta resolución!', 'success');
+        ctx.fillStyle = '#8CE026';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.fillText('Sin descargas • Sin registro • 100% Gratis', canvas.width / 2, 865);
+
+        ctx.fillStyle = '#94A3B8';
+        ctx.font = 'bold 15px monospace';
+        ctx.fillText(currentUrl, canvas.width / 2, 910);
+
+        // Descargar PNG
+        const link = document.createElement('a');
+        link.download = 'QR_Oficial_Barber_Y_Shopping.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        showToast('¡Código QR permanente descargado en alta resolución!', 'success');
+      };
+
+      // Intentar dibujar el logo circular en el centro del QR
+      const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
+
+      logoImg.onload = () => {
+        const logoSize = 100;
+        const logoX = (canvas.width - logoSize) / 2;
+        const logoY = qrY + (qrSize - logoSize) / 2;
+
+        ctx.save();
+        // Círculo blanco de contorno
+        ctx.beginPath();
+        ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2 + 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#76C81C';
+        ctx.stroke();
+
+        // Recorte circular del logo
+        ctx.beginPath();
+        ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+        ctx.restore();
+
+        finishDownload();
+      };
+
+      logoImg.onerror = () => {
+        finishDownload();
+      };
+
+      logoImg.src = '/logo-barber.jpeg';
     };
 
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
@@ -110,11 +152,11 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({ isOpen, onClose }) =
             Código QR Oficial de la Barbería
           </h3>
           <p className="text-xs text-[#94A3B8] mt-1">
-            Imprímelo y pégalo en el espejo para que tus clientes agenden desde su teléfono.
+            Código QR estático y permanente. Nunca caduca ni deja de funcionar.
           </p>
         </div>
 
-        {/* QR Preview Box */}
+        {/* QR Preview Box con Logo Central */}
         <div className="p-6 my-4 bg-white rounded-3xl flex items-center justify-center shadow-inner max-w-[260px] mx-auto">
           <QRCodeSVG
             ref={qrRef}
@@ -122,6 +164,12 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({ isOpen, onClose }) =
             size={220}
             level="H"
             includeMargin={false}
+            imageSettings={{
+              src: '/logo-barber.jpeg',
+              height: 48,
+              width: 48,
+              excavate: true
+            }}
           />
         </div>
 
@@ -148,7 +196,7 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({ isOpen, onClose }) =
           className="w-full min-h-[48px] flex items-center justify-center gap-2 py-3 px-6 rounded-2xl font-bold text-black bg-[#76C81C] hover:bg-[#8CE026] active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(118,200,28,0.25)] text-sm"
         >
           <Download className="w-5 h-5" />
-          Descargar QR en PNG (Listo para Imprimir)
+          Descargar Cartel QR en PNG (Listo para Imprimir)
         </button>
 
       </div>
