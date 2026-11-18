@@ -43,7 +43,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
   const [selectedServiceId, setSelectedServiceId] = useState<string>(services[0]?.id || '');
   const [selectedBarberId, setSelectedBarberId] = useState<string>(activeBarbers[0]?.id || 'barber-1');
   const [startMinutes, setStartMinutes] = useState<number>(
-    preselectedSlot ? preselectedSlot.startMinutes : 540 // 09:00 AM
+    preselectedSlot ? preselectedSlot.startMinutes : 570 // 09:30 AM
   );
   const [notes, setNotes] = useState('');
 
@@ -56,8 +56,8 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Generar lista de horarios desde las 09:00 hasta las 19:00 en intervalos de 40 min
-  const timeOptions = Array.from({ length: 16 }, (_, i) => 540 + i * 40).filter((mins) => mins < 1140);
+  // Generar lista de horarios desde las 09:30 hasta las 19:00 en intervalos de 40 min
+  const timeOptions = Array.from({ length: 16 }, (_, i) => 570 + i * 40).filter((mins) => mins < 1140);
 
   const handleWalkInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

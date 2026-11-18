@@ -12,15 +12,16 @@ import {
   calculateScheduleSlots,
   generateFolio,
   getTodayCanonical,
-  minutesToTime
+  minutesToTime,
+  getCurrentDayMinutes
 } from '../domain/scheduleEngine';
 import { AppointmentRepository } from '../infrastructure/appointmentRepository';
 import { isFirebaseConfigured } from '../infrastructure/firebase';
 
 /**
- * Sintetizador Web Audio API para alerta sonora cuando entra una nueva reserva.
+ * Sintetizador Web Audio API: Alerta de NUEVA RESERVA WEB (Din-don-dan alegre)
  */
-export function playNotificationChime() {
+export function playNewBookingChime() {
   try {
     const AudioContextClass =
       window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -31,26 +32,67 @@ export function playNotificationChime() {
       ctx.resume();
     }
 
-    const playTone = (freq: number, delay: number, duration: number) => {
+    const playTone = (freq: number, start: number, duration: number, gainVal = 0.35) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
-      gain.gain.setValueAtTime(0.001, ctx.currentTime + delay);
-      gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + delay + 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + duration);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+      gain.gain.setValueAtTime(0.001, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(gainVal, ctx.currentTime + start + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + duration);
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.start(ctx.currentTime + delay);
-      osc.stop(ctx.currentTime + delay + duration);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration);
     };
 
-    playTone(587.33, 0, 0.2);
-    playTone(880.0, 0.14, 0.35);
+    // Arpegio mayor alegre C5 -> E5 -> G5 -> C6
+    playTone(523.25, 0, 0.22, 0.35);
+    playTone(659.25, 0.12, 0.22, 0.35);
+    playTone(783.99, 0.24, 0.26, 0.4);
+    playTone(1046.50, 0.38, 0.55, 0.45);
   } catch {
     // Autoplay policy bypass
   }
 }
+
+/**
+ * Sintetizador Web Audio API: Alerta de CITA COMENZANDO AHORA (Campana doble)
+ */
+export function playAppointmentStartChime() {
+  try {
+    const AudioContextClass =
+      window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+
+    const playTone = (freq: number, start: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+      gain.gain.setValueAtTime(0.001, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + start + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration);
+    };
+
+    // Doble campana de aviso de inicio de turno
+    playTone(880.0, 0, 0.35);
+    playTone(880.0, 0.26, 0.55);
+  } catch {
+    // Autoplay policy bypass
+  }
+}
+
+export const playNotificationChime = playNewBookingChime;
 
 /**
  * Hook para la Vista Pública del Cliente (Soporte Multi-Barbero)
@@ -192,7 +234,9 @@ export function useClientBooking(config: ShopConfig, defaultService?: ServiceIte
  */
 export function useBarberSchedule(config: ShopConfig) {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayCanonical());
-  const [selectedBarberFilter, setSelectedBarberFilter] = useState<string>('all'); // 'all' o id específico
+  const [selectedBarberFilter, setSelectedBarberFilterState] = useState<string>(() => {
+    return localStorage.getItem('barber_active_profile') || 'all';
+  });
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
@@ -202,6 +246,12 @@ export function useBarberSchedule(config: ShopConfig) {
   const [isLoading, setIsLoading] = useState(true);
 
   const prevAppointmentsCountRef = useRef<number | null>(null);
+  const alertedAppIdsRef = useRef<Set<string>>(new Set());
+
+  const setSelectedBarberFilter = (val: string) => {
+    setSelectedBarberFilterState(val);
+    localStorage.setItem('barber_active_profile', val);
+  };
 
   useEffect(() => {
     setIsLoading(true);
@@ -218,7 +268,7 @@ export function useBarberSchedule(config: ShopConfig) {
             (app) => app.source === 'client_web' && app.status === 'confirmed'
           );
           if (hasNewWeb && soundEnabled) {
-            playNotificationChime();
+            playNewBookingChime();
           }
         }
         prevAppointmentsCountRef.current = list.length;
@@ -240,13 +290,59 @@ export function useBarberSchedule(config: ShopConfig) {
     };
   }, [selectedDate, soundEnabled]);
 
+  // Alerta sonora y notificación nativa cuando comienza una cita (con tolerancia)
+  useEffect(() => {
+    const checkUpcomingAppointment = () => {
+      const today = getTodayCanonical();
+      if (selectedDate !== today) return;
+
+      const currentMins = getCurrentDayMinutes();
+
+      appointments.forEach((app) => {
+        if (app.status !== 'confirmed') return;
+        // Si este barbero tiene su teléfono filtrado a sí mismo, solo avisar de las suyas
+        if (selectedBarberFilter !== 'all' && app.barberId !== selectedBarberFilter) return;
+
+        // Comienza en este minuto (entre 0 y 2 minutos transcurridos)
+        const isStartingNow = currentMins >= app.startMinutes && currentMins <= app.startMinutes + 2;
+        if (isStartingNow && !alertedAppIdsRef.current.has(app.id)) {
+          alertedAppIdsRef.current.add(app.id);
+          if (soundEnabled) {
+            playAppointmentStartChime();
+          }
+
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            try {
+              new Notification(`💈 ¡Cita Comenzando - ${app.barberName}!`, {
+                body: `Atendiendo a ${app.clientName} (${app.serviceName}). Cuentas con 10 min de tolerancia.`,
+                icon: '/logo-barber.jpeg'
+              });
+            } catch {}
+          }
+        }
+      });
+    };
+
+    const interval = setInterval(checkUpcomingAppointment, 20000);
+    checkUpcomingAppointment();
+
+    return () => clearInterval(interval);
+  }, [appointments, selectedDate, selectedBarberFilter, soundEnabled]);
+
   const toggleSound = () => {
     setSoundEnabled((prev) => {
       const next = !prev;
       localStorage.setItem('barber_sound_alerts', String(next));
-      if (next) playNotificationChime();
+      if (next) playNewBookingChime();
       return next;
     });
+  };
+
+  const playTestSound = () => {
+    playNewBookingChime();
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
   };
 
   // Filtrar citas según el barbero seleccionado en el admin
@@ -398,6 +494,7 @@ export function useBarberSchedule(config: ShopConfig) {
     isLoading,
     soundEnabled,
     toggleSound,
+    playTestSound,
     markAsCompleted,
     cancelAppointment,
     rescheduleAppointment,

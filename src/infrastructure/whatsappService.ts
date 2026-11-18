@@ -38,6 +38,7 @@ export function buildClientConfirmationWhatsAppUrl(
 💰 *Total:* $${appointment.price} MXN
 📅 *Fecha:* ${dateFormatted}
 ⏰ *Hora:* ${timeFormatted} (${appointment.startTime} hrs)
+⏱️ *Tolerancia:* 10 minutos
 
 ¡Quedo al pendiente para mi corte! ✂️🔥`;
 
@@ -61,6 +62,7 @@ export function buildBarberToClientWhatsAppUrl(appointment: Appointment): string
 ✂️ *Servicio:* ${appointment.serviceName}
 📅 *Fecha:* ${dateFormatted}
 ⏰ *Hora:* ${timeFormatted}
+⏱️ *Tolerancia:* 10 minutos
 🎟️ *Folio:* \`${appointment.folio}\`
 
 ¡Te esperamos con la mejor atención y estilo alien! Si necesitas algún cambio, escríbenos por aquí. 💈🚀`;

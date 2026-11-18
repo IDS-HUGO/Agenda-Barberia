@@ -35,10 +35,10 @@ export function useShopSettings() {
 
             const isLegacy =
               !data.weekdayOpeningMinutes ||
-              data.weekdayOpeningMinutes !== 540 ||
+              data.weekdayOpeningMinutes !== 570 ||
               data.weekdayClosingMinutes !== 1140 ||
               !data.sundayOpeningMinutes ||
-              data.sundayOpeningMinutes !== 540 ||
+              data.sundayOpeningMinutes !== 570 ||
               data.sundayClosingMinutes !== 900 ||
               data.slotIntervalMinutes !== 40 ||
               hasLegacyBarbers;
@@ -46,9 +46,9 @@ export function useShopSettings() {
             const resolvedConfig: ShopConfig = {
               ...DEFAULT_SHOP_CONFIG,
               ...data,
-              weekdayOpeningMinutes: 540,
+              weekdayOpeningMinutes: 570,
               weekdayClosingMinutes: 1140,
-              sundayOpeningMinutes: 540,
+              sundayOpeningMinutes: 570,
               sundayClosingMinutes: 900,
               slotIntervalMinutes: 40,
               barbers: resolvedBarbers
@@ -99,9 +99,9 @@ export function useShopSettings() {
         setConfig({
           ...DEFAULT_SHOP_CONFIG,
           ...localCfg.value,
-          weekdayOpeningMinutes: 540,
+          weekdayOpeningMinutes: 570,
           weekdayClosingMinutes: 1140,
-          sundayOpeningMinutes: 540,
+          sundayOpeningMinutes: 570,
           sundayClosingMinutes: 900,
           slotIntervalMinutes: 40,
           barbers: (localCfg.value.barbers && !localCfg.value.barbers.some((b: Barber) => b.name.toLowerCase().startsWith('barbero')))

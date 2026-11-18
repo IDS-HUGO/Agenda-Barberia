@@ -186,11 +186,11 @@ export const ClientBookingPage: React.FC = () => {
           <div className="mt-4 pt-4 border-t border-[#1F2937]/80 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs">
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#090B0E] border border-[#1F2937] text-[#D1D5DB]">
               <Clock className="w-3.5 h-3.5 text-[#76C81C]" />
-              <span><strong>Lun a Sáb:</strong> 9:00 AM – 7:00 PM</span>
+              <span><strong>Lun a Sáb:</strong> 9:30 AM – 7:00 PM</span>
             </div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#090B0E] border border-[#1F2937] text-[#D1D5DB]">
               <Clock className="w-3.5 h-3.5 text-[#F59E0B]" />
-              <span><strong>Domingos:</strong> 9:00 AM – 3:00 PM</span>
+              <span><strong>Domingos:</strong> 9:30 AM – 3:00 PM</span>
             </div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#76C81C]/10 border border-[#76C81C]/30 text-[#8CE026] font-extrabold">
               <span>⚡ 3 Barberos en paralelo (40 min)</span>
@@ -386,8 +386,8 @@ export const ClientBookingPage: React.FC = () => {
                 <Clock className="w-3.5 h-3.5 text-[#76C81C]" />
                 <span>
                   {isSelectedDateSunday
-                    ? 'Horario Domingo: 9:00 AM a 3:00 PM'
-                    : 'Horario Lunes a Sábado: 9:00 AM a 7:00 PM'}
+                    ? 'Horario Domingo: 9:30 AM a 3:00 PM'
+                    : 'Horario Lunes a Sábado: 9:30 AM a 7:00 PM'}
                 </span>
               </div>
             </div>
@@ -659,7 +659,7 @@ export const ClientBookingPage: React.FC = () => {
       <footer className="py-6 border-t border-[#1F2937] text-center text-xs text-[#64748B]">
         <p>© {new Date().getFullYear()} BARBER Y SHOPPING — Todos los derechos reservados.</p>
         <p className="text-[11px] mt-1 text-[#475569]">
-          Horarios: Lun-Sáb 9:00 AM - 7:00 PM | Dom 9:00 AM - 3:00 PM • 3 Barberos en paralelo
+          Horarios: Lun-Sáb 9:30 AM - 7:00 PM | Dom 9:30 AM - 3:00 PM • 3 Barberos en paralelo • Tolerancia 10 min
         </p>
       </footer>
     </div>

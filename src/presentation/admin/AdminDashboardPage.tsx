@@ -18,7 +18,8 @@ import {
   HelpCircle,
   X,
   FileText,
-  Scissors
+  Scissors,
+  Volume2
 } from 'lucide-react';
 import { useBarberAuth } from '../../application/useBarberAuth';
 import { useShopSettings } from '../../application/useShopSettings';
@@ -59,6 +60,7 @@ export const AdminDashboardPage: React.FC = () => {
     isLoading,
     soundEnabled,
     toggleSound,
+    playTestSound,
     markAsCompleted,
     cancelAppointment,
     rescheduleAppointment,
@@ -77,7 +79,7 @@ export const AdminDashboardPage: React.FC = () => {
   // Estado para Reprogramación de Cita
   const [reschedulingApp, setReschedulingApp] = useState<Appointment | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState(selectedDate);
-  const [rescheduleStartMins, setRescheduleStartMins] = useState(540);
+  const [rescheduleStartMins, setRescheduleStartMins] = useState(570);
 
   // Redirección si no está autenticado
   if (!isAuthenticated) {
@@ -132,6 +134,9 @@ export const AdminDashboardPage: React.FC = () => {
     showToast('Generando reporte para imprimir / guardar en PDF...', 'info');
   };
 
+  const activeBarber = (config.barbers || []).find((b) => b.id === selectedBarberFilter);
+  const dashboardTitle = activeBarber ? `Tablero de ${activeBarber.name}` : 'Tablero del Barbero';
+
   return (
     <div className="min-h-screen bg-[#090B0E] flex flex-col font-['Plus_Jakarta_Sans']">
       
@@ -169,13 +174,13 @@ export const AdminDashboardPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-[#F8FAFC] font-['Space_Grotesk'] tracking-tight flex items-center gap-2">
-              Tablero del Barbero
+              {dashboardTitle}
               <span className="text-xs px-2.5 py-1 rounded-full bg-[#76C81C]/15 border border-[#76C81C]/40 text-[#8CE026] font-mono">
-                3 BARBEROS EN VIVO
+                {activeBarber ? `💈 ${activeBarber.name}` : '3 BARBEROS EN VIVO'}
               </span>
             </h2>
             <p className="text-xs text-[#94A3B8] mt-0.5">
-              Gestión simultánea de citas, sillas de atención e ingresos en tiempo real.
+              Tolerancia de 10 min activa • Turnos de 40 min • Sincronización en vivo.
             </p>
           </div>
 
@@ -189,6 +194,18 @@ export const AdminDashboardPage: React.FC = () => {
             >
               <Plus className="w-4 h-4" />
               Nueva Cita / Bloqueo
+            </button>
+
+            <button
+              onClick={() => {
+                playTestSound();
+                showToast('🔔 ¡Sonido probado! Notificaciones sonoras activas en este celular.', 'success');
+              }}
+              className="min-h-[44px] flex items-center gap-1.5 px-3 py-2.5 rounded-2xl bg-[#12161D] hover:bg-[#1A202C] border border-[#76C81C]/40 text-[#8CE026] text-xs font-bold transition-all active:scale-95"
+              title="Probar sonido de notificación de citas"
+            >
+              <Volume2 className="w-4 h-4" />
+              <span>Probar Alerta</span>
             </button>
 
             <button
@@ -220,39 +237,54 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ================= FILTRO POR BARBERO ================= */}
-        <div className="p-3 bg-[#12161D] border border-[#1F2937] rounded-2xl flex items-center gap-2 overflow-x-auto scrollbar-none">
-          <span className="text-xs font-bold text-[#94A3B8] uppercase tracking-wider shrink-0 flex items-center gap-1.5 mr-1">
-            <Scissors className="w-3.5 h-3.5 text-[#76C81C]" />
-            Ver Agenda:
-          </span>
-          <button
-            onClick={() => setSelectedBarberFilter('all')}
-            className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all ${
-              selectedBarberFilter === 'all'
-                ? 'bg-[#76C81C] text-black shadow-[0_0_12px_rgba(118,200,28,0.3)]'
-                : 'bg-[#1A202C] text-[#D1D5DB] hover:text-white border border-[#1F2937]'
-            }`}
-          >
-            Todos los Barberos (3)
-          </button>
-          {(config.barbers || []).map((barber) => {
-            const isSelected = selectedBarberFilter === barber.id;
-            return (
-              <button
-                key={barber.id}
-                onClick={() => setSelectedBarberFilter(barber.id)}
-                className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 ${
-                  isSelected
-                    ? 'bg-[#8CE026] text-black shadow-[0_0_12px_rgba(118,200,28,0.3)]'
-                    : 'bg-[#1A202C] text-[#D1D5DB] hover:text-white border border-[#1F2937]'
-                }`}
-              >
-                <span>💈</span>
-                <span>{barber.name}</span>
-              </button>
-            );
-          })}
+        {/* ================= SELECTOR DE BARBERO (OPTIMIZADO PARA EL CELULAR DE CADA UNO) ================= */}
+        <div className="p-3.5 bg-[#12161D] border border-[#1F2937] rounded-2xl space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-extrabold text-[#D1D5DB] uppercase tracking-wider flex items-center gap-1.5">
+              <Scissors className="w-4 h-4 text-[#76C81C]" />
+              ¿Quién está usando este teléfono?
+            </span>
+            <span className="text-[11px] text-[#8CE026] font-bold">
+              {activeBarber ? `💈 Modo: ${activeBarber.name}` : '👥 Viendo las 3 sillas'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <button
+              onClick={() => {
+                setSelectedBarberFilter('all');
+                showToast('Viendo agenda completa de todos los barberos', 'info');
+              }}
+              className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-black shrink-0 transition-all ${
+                selectedBarberFilter === 'all'
+                  ? 'bg-[#76C81C] text-black shadow-[0_0_15px_rgba(118,200,28,0.35)]'
+                  : 'bg-[#1A202C] text-[#D1D5DB] hover:text-white border border-[#1F2937]'
+              }`}
+            >
+              👥 Ver Todos (3)
+            </button>
+            {(config.barbers || []).map((barber) => {
+              const isSelected = selectedBarberFilter === barber.id;
+              return (
+                <button
+                  key={barber.id}
+                  onClick={() => {
+                    setSelectedBarberFilter(barber.id);
+                    playTestSound();
+                    showToast(`¡Hola ${barber.name}! Teléfono configurado para tus citas.`, 'success');
+                  }}
+                  className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-black shrink-0 transition-all flex items-center gap-1.5 active:scale-95 ${
+                    isSelected
+                      ? 'bg-[#8CE026] text-black shadow-[0_0_15px_rgba(118,200,28,0.35)]'
+                      : 'bg-[#1A202C] text-[#D1D5DB] hover:text-white border border-[#1F2937]'
+                  }`}
+                >
+                  <span>💈</span>
+                  <span>Soy {barber.name}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* ================= TARJETAS DE ESTADÍSTICAS DEL DÍA ================= */}
@@ -462,7 +494,7 @@ export const AdminDashboardPage: React.FC = () => {
                 onChange={(e) => setRescheduleStartMins(Number(e.target.value))}
                 className="w-full min-h-[44px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
               >
-                {Array.from({ length: 20 }, (_, i) => 540 + i * 40).map((mins) => (
+                {Array.from({ length: 20 }, (_, i) => 570 + i * 40).filter((m) => m < 1140).map((mins) => (
                   <option key={mins} value={mins}>
                     {minutesToTime12h(mins)}
                   </option>

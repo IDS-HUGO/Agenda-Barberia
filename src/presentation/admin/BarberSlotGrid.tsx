@@ -17,7 +17,7 @@ import {
   Scissors
 } from 'lucide-react';
 import { Appointment, BlockedSlot, PublicSlot } from '../../domain/models';
-import { minutesToTime12h, formatFriendlyDate } from '../../domain/scheduleEngine';
+import { minutesToTime12h, formatFriendlyDate, getCurrentDayMinutes, getTodayCanonical } from '../../domain/scheduleEngine';
 import { buildBarberToClientWhatsAppUrl } from '../../infrastructure/whatsappService';
 import { useToast } from '../shared/ToastProvider';
 
@@ -157,6 +157,35 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
                   {slotApps.map((app) => {
                     const isCompleted = app.status === 'completed';
                     const whatsappUrl = buildBarberToClientWhatsAppUrl(app);
+                    const isToday = slot.date === getTodayCanonical();
+                    const currentMins = getCurrentDayMinutes();
+
+                    // Tolerancia de 10 minutos y estado en vivo
+                    let liveToleranceBadge = null;
+                    if (isToday && !isCompleted && app.status === 'confirmed') {
+                      if (currentMins >= app.startMinutes && currentMins <= app.startMinutes + 10) {
+                        liveToleranceBadge = (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40 animate-pulse flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            Tolerancia (+{currentMins - app.startMinutes}m / 10m)
+                          </span>
+                        );
+                      } else if (currentMins > app.startMinutes + 10 && currentMins < app.endMinutes) {
+                        liveToleranceBadge = (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/40 flex items-center gap-1">
+                            <Scissors className="w-3 h-3" />
+                            En Atención
+                          </span>
+                        );
+                      } else if (currentMins < app.startMinutes && currentMins >= app.startMinutes - 10) {
+                        liveToleranceBadge = (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-blue-950/60 text-blue-400 border border-blue-700/40 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            Inicia en {app.startMinutes - currentMins} min
+                          </span>
+                        );
+                      }
+                    }
 
                     return (
                       <div
@@ -174,12 +203,14 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-[#8CE026]/15 text-[#8CE026] border border-[#8CE026]/30 flex items-center gap-1">
                                 <Scissors className="w-3 h-3" />
-                                {app.barberName || 'Barbero'}
+                                {app.barberName || 'Hugo'}
                               </span>
 
                               <h4 className="font-bold text-sm text-white">
                                 {app.clientName}
                               </h4>
+
+                              {liveToleranceBadge}
 
                               <span
                                 className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${

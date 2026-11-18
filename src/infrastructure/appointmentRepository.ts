@@ -80,9 +80,9 @@ export async function seedLocalDatabaseIfNeeded(): Promise<void> {
       (b: any) => b.name?.toLowerCase().startsWith('barbero')
     );
     const isLegacyConfig = !shopConfigDoc ||
-      shopConfigDoc.value?.weekdayOpeningMinutes !== 540 ||
+      shopConfigDoc.value?.weekdayOpeningMinutes !== 570 ||
       shopConfigDoc.value?.weekdayClosingMinutes !== 1140 ||
-      shopConfigDoc.value?.sundayOpeningMinutes !== 540 ||
+      shopConfigDoc.value?.sundayOpeningMinutes !== 570 ||
       shopConfigDoc.value?.sundayClosingMinutes !== 900 ||
       hasLegacyBarbers;
 

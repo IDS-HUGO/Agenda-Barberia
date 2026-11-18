@@ -131,9 +131,9 @@ export const DEFAULT_SHOP_CONFIG: ShopConfig = {
   shopPhone: '5219999999999',
   shopAddress: 'Plaza Shopping - Pasillo Central #12',
   slotIntervalMinutes: 40, // 40 minutos por corte
-  weekdayOpeningMinutes: 540, // 09:00 AM
+  weekdayOpeningMinutes: 570, // 09:30 AM
   weekdayClosingMinutes: 1140, // 07:00 PM (19:00)
-  sundayOpeningMinutes: 540, // 09:00 AM
+  sundayOpeningMinutes: 570, // 09:30 AM
   sundayClosingMinutes: 900, // 03:00 PM (15:00)
   activeDays: [0, 1, 2, 3, 4, 5, 6], // Abierto de Lunes a Domingo
   barbers: DEFAULT_BARBERS,

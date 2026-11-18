@@ -55,9 +55,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<'general' | 'barbers' | 'services' | 'backups'>('general');
 
   // Form states for general config
-  const [openingTime, setOpeningTime] = useState(minutesToTime(config.weekdayOpeningMinutes ?? 540));
+  const [openingTime, setOpeningTime] = useState(minutesToTime(config.weekdayOpeningMinutes ?? 570));
   const [closingTime, setClosingTime] = useState(minutesToTime(config.weekdayClosingMinutes ?? 1140));
-  const [sundayOpeningTime, setSundayOpeningTime] = useState(minutesToTime(config.sundayOpeningMinutes ?? 540));
+  const [sundayOpeningTime, setSundayOpeningTime] = useState(minutesToTime(config.sundayOpeningMinutes ?? 570));
   const [sundayClosingTime, setSundayClosingTime] = useState(minutesToTime(config.sundayClosingMinutes ?? 900));
   const [slotInterval, setSlotInterval] = useState(config.slotIntervalMinutes ?? 40);
   const [shopPhone, setShopPhone] = useState(config.shopPhone);
@@ -235,7 +235,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {/* Horario Lunes a Sábado */}
             <div className="p-3.5 bg-[#090B0E] border border-[#1F2937] rounded-2xl space-y-3">
               <span className="text-xs font-bold text-[#8CE026] uppercase tracking-wider block">
-                Horario Lunes a Sábado (09:00 AM - 07:00 PM)
+                Horario Lunes a Sábado (09:30 AM - 07:00 PM)
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -269,7 +269,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {/* Horario Domingo */}
             <div className="p-3.5 bg-[#090B0E] border border-[#1F2937] rounded-2xl space-y-3">
               <span className="text-xs font-bold text-[#F59E0B] uppercase tracking-wider block">
-                Horario Domingos (09:00 AM - 03:00 PM)
+                Horario Domingos (09:30 AM - 03:00 PM)
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>

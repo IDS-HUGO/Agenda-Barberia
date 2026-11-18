@@ -182,6 +182,16 @@ export const BookingReceipt: React.FC<BookingReceiptProps> = ({
             </div>
           )}
 
+          {/* Tolerancia de 10 minutos */}
+          {!isCancelled && (
+            <div className="p-3 bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-2xl flex items-center gap-2.5 text-xs text-[#F59E0B]">
+              <Clock className="w-4 h-4 shrink-0" />
+              <span>
+                <strong>Tolerancia de 10 minutos:</strong> Cuentas con 10 min de tolerancia para llegar a tu turno.
+              </span>
+            </div>
+          )}
+
           {/* Precio Total */}
           <div className="pt-2 flex items-center justify-between bg-[#090B0E]/60 p-3.5 rounded-2xl border border-[#1F2937]">
             <span className="text-sm font-bold text-[#D1D5DB]">Total:</span>
