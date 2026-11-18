@@ -28,11 +28,30 @@ export function useShopSettings() {
         unsubscribeConfig = onSnapshot(configDocRef, (snap) => {
           if (snap.exists()) {
             const data = snap.data();
-            setConfig({
+            const isLegacy =
+              !data.weekdayOpeningMinutes ||
+              data.weekdayOpeningMinutes !== 540 ||
+              data.weekdayClosingMinutes !== 1140 ||
+              !data.sundayOpeningMinutes ||
+              data.sundayOpeningMinutes !== 540 ||
+              data.sundayClosingMinutes !== 900 ||
+              data.slotIntervalMinutes !== 40;
+
+            const resolvedConfig: ShopConfig = {
               ...DEFAULT_SHOP_CONFIG,
               ...data,
+              weekdayOpeningMinutes: 540,
+              weekdayClosingMinutes: 1140,
+              sundayOpeningMinutes: 540,
+              sundayClosingMinutes: 900,
+              slotIntervalMinutes: 40,
               barbers: data.barbers && data.barbers.length > 0 ? data.barbers : DEFAULT_BARBERS
-            });
+            };
+
+            if (isLegacy) {
+              setDoc(configDocRef, resolvedConfig, { merge: true });
+            }
+            setConfig(resolvedConfig);
           } else {
             setDoc(configDocRef, DEFAULT_SHOP_CONFIG);
             setConfig(DEFAULT_SHOP_CONFIG);
@@ -41,7 +60,22 @@ export function useShopSettings() {
 
         unsubscribeServices = onSnapshot(servicesDocRef, (snap) => {
           if (snap.exists() && snap.data().items && snap.data().items.length > 0) {
-            setServices(snap.data().items as ServiceItem[]);
+            const rawItems = snap.data().items as ServiceItem[];
+            const isLegacy = rawItems.some(
+              (it) =>
+                it.name.toLowerCase().includes('alien') ||
+                it.name.toLowerCase().includes('vip') ||
+                it.name.toLowerCase().includes('gremas') ||
+                it.price === 150 ||
+                it.price === 120
+            );
+
+            if (isLegacy) {
+              setDoc(servicesDocRef, { items: DEFAULT_SERVICES });
+              setServices(DEFAULT_SERVICES);
+            } else {
+              setServices(rawItems);
+            }
           } else {
             setDoc(servicesDocRef, { items: DEFAULT_SERVICES });
             setServices(DEFAULT_SERVICES);
@@ -59,12 +93,29 @@ export function useShopSettings() {
         setConfig({
           ...DEFAULT_SHOP_CONFIG,
           ...localCfg.value,
+          weekdayOpeningMinutes: 540,
+          weekdayClosingMinutes: 1140,
+          sundayOpeningMinutes: 540,
+          sundayClosingMinutes: 900,
+          slotIntervalMinutes: 40,
           barbers: localCfg.value.barbers || DEFAULT_BARBERS
         });
       }
       const localServices = await localDB.services.toArray();
-      if (localServices.length > 0) {
+      const hasLegacyLocal = localServices.some(
+        (it) =>
+          it.name.toLowerCase().includes('alien') ||
+          it.name.toLowerCase().includes('vip') ||
+          it.name.toLowerCase().includes('gremas') ||
+          it.price === 150 ||
+          it.price === 120
+      );
+      if (localServices.length > 0 && !hasLegacyLocal) {
         setServices(localServices);
+      } else {
+        await localDB.services.clear();
+        await localDB.services.bulkAdd(DEFAULT_SERVICES);
+        setServices(DEFAULT_SERVICES);
       }
       setIsLoading(false);
     };

@@ -60,13 +60,29 @@ function notifyLocalChange(date?: string) {
 // Inicializar catálogo y configuración por defecto en localDB
 export async function seedLocalDatabaseIfNeeded(): Promise<void> {
   try {
-    const serviceCount = await localDB.services.count();
-    if (serviceCount === 0) {
+    const existingServices = await localDB.services.toArray();
+    const hasLegacy = existingServices.some(
+      (it) =>
+        it.name.toLowerCase().includes('alien') ||
+        it.name.toLowerCase().includes('vip') ||
+        it.name.toLowerCase().includes('gremas') ||
+        it.price === 150 ||
+        it.price === 120
+    );
+
+    if (existingServices.length === 0 || hasLegacy) {
+      await localDB.services.clear();
       await localDB.services.bulkAdd(DEFAULT_SERVICES);
     }
 
     const shopConfigDoc = await localDB.settings.get('shop_config');
-    if (!shopConfigDoc) {
+    const isLegacyConfig = !shopConfigDoc ||
+      shopConfigDoc.value?.weekdayOpeningMinutes !== 540 ||
+      shopConfigDoc.value?.weekdayClosingMinutes !== 1140 ||
+      shopConfigDoc.value?.sundayOpeningMinutes !== 540 ||
+      shopConfigDoc.value?.sundayClosingMinutes !== 900;
+
+    if (isLegacyConfig) {
       await localDB.settings.put({ key: 'shop_config', value: DEFAULT_SHOP_CONFIG });
     }
   } catch (err) {

@@ -101,19 +101,19 @@ export const DEFAULT_SERVICES: ServiceItem[] = [
     isActive: true
   },
   {
-    id: 'srv-corte-cejas',
-    name: 'Corte más cejas',
-    price: 200,
-    durationMinutes: 40,
-    description: 'Corte a elección más perfilado y diseño de cejas con navaja.',
-    isActive: true
-  },
-  {
     id: 'srv-corte-barba',
     name: 'Corte y barba',
     price: 230,
     durationMinutes: 60,
     description: 'Corte completo, toalla caliente y ritual de barba con aceites.',
+    isActive: true
+  },
+  {
+    id: 'srv-corte-cejas',
+    name: 'Corte más cejas',
+    price: 200,
+    durationMinutes: 40,
+    description: 'Corte a elección más perfilado y diseño de cejas con navaja.',
     isActive: true
   },
   {
