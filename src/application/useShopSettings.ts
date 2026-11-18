@@ -28,6 +28,11 @@ export function useShopSettings() {
         unsubscribeConfig = onSnapshot(configDocRef, (snap) => {
           if (snap.exists()) {
             const data = snap.data();
+            const hasLegacyBarbers = !data.barbers || data.barbers.some(
+              (b: Barber) => b.name.toLowerCase().startsWith('barbero')
+            );
+            const resolvedBarbers: Barber[] = hasLegacyBarbers ? DEFAULT_BARBERS : data.barbers;
+
             const isLegacy =
               !data.weekdayOpeningMinutes ||
               data.weekdayOpeningMinutes !== 540 ||
@@ -35,7 +40,8 @@ export function useShopSettings() {
               !data.sundayOpeningMinutes ||
               data.sundayOpeningMinutes !== 540 ||
               data.sundayClosingMinutes !== 900 ||
-              data.slotIntervalMinutes !== 40;
+              data.slotIntervalMinutes !== 40 ||
+              hasLegacyBarbers;
 
             const resolvedConfig: ShopConfig = {
               ...DEFAULT_SHOP_CONFIG,
@@ -45,7 +51,7 @@ export function useShopSettings() {
               sundayOpeningMinutes: 540,
               sundayClosingMinutes: 900,
               slotIntervalMinutes: 40,
-              barbers: data.barbers && data.barbers.length > 0 ? data.barbers : DEFAULT_BARBERS
+              barbers: resolvedBarbers
             };
 
             if (isLegacy) {
@@ -98,7 +104,9 @@ export function useShopSettings() {
           sundayOpeningMinutes: 540,
           sundayClosingMinutes: 900,
           slotIntervalMinutes: 40,
-          barbers: localCfg.value.barbers || DEFAULT_BARBERS
+          barbers: (localCfg.value.barbers && !localCfg.value.barbers.some((b: Barber) => b.name.toLowerCase().startsWith('barbero')))
+            ? localCfg.value.barbers
+            : DEFAULT_BARBERS
         });
       }
       const localServices = await localDB.services.toArray();

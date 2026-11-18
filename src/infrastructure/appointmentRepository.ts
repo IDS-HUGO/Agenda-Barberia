@@ -76,11 +76,15 @@ export async function seedLocalDatabaseIfNeeded(): Promise<void> {
     }
 
     const shopConfigDoc = await localDB.settings.get('shop_config');
+    const hasLegacyBarbers = !shopConfigDoc?.value?.barbers || shopConfigDoc.value.barbers.some(
+      (b: any) => b.name?.toLowerCase().startsWith('barbero')
+    );
     const isLegacyConfig = !shopConfigDoc ||
       shopConfigDoc.value?.weekdayOpeningMinutes !== 540 ||
       shopConfigDoc.value?.weekdayClosingMinutes !== 1140 ||
       shopConfigDoc.value?.sundayOpeningMinutes !== 540 ||
-      shopConfigDoc.value?.sundayClosingMinutes !== 900;
+      shopConfigDoc.value?.sundayClosingMinutes !== 900 ||
+      hasLegacyBarbers;
 
     if (isLegacyConfig) {
       await localDB.settings.put({ key: 'shop_config', value: DEFAULT_SHOP_CONFIG });

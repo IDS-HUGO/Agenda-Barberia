@@ -35,12 +35,13 @@ if (isFirebaseConfigured) {
   try {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     
-    // Inicialización resiliente con caché persistente y fallback seguro
+    // Inicialización resiliente con caché persistente y detección automática de long-polling
     try {
       db = initializeFirestore(app, {
         localCache: persistentLocalCache({
           tabManager: persistentMultipleTabManager()
-        })
+        }),
+        experimentalAutoDetectLongPolling: true
       });
     } catch {
       // Si ya existía instancia previa (hot-reload o re-render)

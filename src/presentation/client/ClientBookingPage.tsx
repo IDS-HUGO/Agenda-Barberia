@@ -572,7 +572,7 @@ export const ClientBookingPage: React.FC = () => {
                   <Users className="w-3.5 h-3.5 text-[#76C81C]" />
                   Barbero Asignado: <span className="text-white font-bold">
                     {selectedBarberId === 'any'
-                      ? `${selectedSlot.freeBarbers[0]?.name || 'Barbero 1'}`
+                      ? `${selectedSlot.freeBarbers[0]?.name || 'Hugo'}`
                       : (config.barbers.find((b) => b.id === selectedBarberId)?.name || 'Barbero')}
                   </span>
                 </p>

@@ -128,7 +128,7 @@ export const BookingReceipt: React.FC<BookingReceiptProps> = ({
               Barbero Asignado
             </span>
             <span className="font-extrabold text-[#76C81C]">
-              {appointment.barberName || 'Barbero 1'}
+              {appointment.barberName || 'Hugo'}
             </span>
           </div>
 

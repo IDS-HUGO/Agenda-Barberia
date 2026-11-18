@@ -57,7 +57,7 @@ export function buildBarberToClientWhatsAppUrl(appointment: Appointment): string
 
 ¡Hola ${appointment.clientName}! Te escribimos de BARBER Y SHOPPING respecto a tu cita:
 
-💈 *Barbero Asignado:* ${appointment.barberName || 'Barbero 1'}
+💈 *Barbero Asignado:* ${appointment.barberName || 'Hugo'}
 ✂️ *Servicio:* ${appointment.serviceName}
 📅 *Fecha:* ${dateFormatted}
 ⏰ *Hora:* ${timeFormatted}

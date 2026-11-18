@@ -183,7 +183,7 @@ export function exportAppointmentsToPdf(
           <td style="font-family: monospace; font-weight: bold;">${app.folio}</td>
           <td>${app.date}</td>
           <td style="font-weight: 600;">${minutesToTime12h(app.startMinutes)}</td>
-          <td style="font-weight: bold; color: #090B0E;">${app.barberName || 'Barbero 1'}</td>
+          <td style="font-weight: bold; color: #090B0E;">${app.barberName || 'Hugo'}</td>
           <td style="font-weight: 600;">${app.clientName}</td>
           <td style="font-family: monospace;">${app.clientPhone}</td>
           <td>${app.serviceName}</td>
@@ -265,7 +265,7 @@ export function exportAppointmentsToCsv(appointments: Appointment[]): void {
     app.folio,
     `"${app.clientName.replace(/"/g, '""')}"`,
     app.clientPhone,
-    `"${(app.barberName || 'Barbero 1').replace(/"/g, '""')}"`,
+    `"${(app.barberName || 'Hugo').replace(/"/g, '""')}"`,
     `"${app.serviceName.replace(/"/g, '""')}"`,
     app.price,
     app.durationMinutes,
