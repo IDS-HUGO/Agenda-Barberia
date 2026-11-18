@@ -9,10 +9,11 @@ import {
   Calendar,
   Lock,
   PlusCircle,
-  AlertCircle,
+  AlertTriangle,
   RotateCcw,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  X
 } from 'lucide-react';
 import { Appointment, BlockedSlot, PublicSlot, ServiceItem } from '../../domain/models';
 import { minutesToTime12h, formatFriendlyDate } from '../../domain/scheduleEngine';
@@ -25,7 +26,7 @@ interface BarberSlotGridProps {
   blockedSlots: BlockedSlot[];
   onOpenWalkInForSlot: (slot: PublicSlot) => void;
   onMarkCompleted: (id: string) => Promise<void>;
-  onCancelAppointment: (id: string) => Promise<void>;
+  onCancelAppointment: (id: string, folio?: string) => Promise<void>;
   onReschedule: (appointment: Appointment) => void;
   onUnblockSlot: (id: string) => Promise<void>;
 }
@@ -42,6 +43,8 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
 }) => {
   const { showToast } = useToast();
   const [filter, setFilter] = useState<'all' | 'occupied' | 'available'>('all');
+  const [appToCancel, setAppToCancel] = useState<Appointment | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Filtrar según botón
   const filteredSlots = slots.filter((slot) => {
@@ -50,6 +53,20 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
     if (filter === 'available') return slot.status === 'available';
     return true;
   });
+
+  const handleConfirmCancel = async () => {
+    if (!appToCancel) return;
+    setIsCancelling(true);
+    try {
+      await onCancelAppointment(appToCancel.id, appToCancel.folio);
+      showToast(`Cita de ${appToCancel.clientName} cancelada y horario liberado.`, 'info');
+      setAppToCancel(null);
+    } catch (err: any) {
+      showToast('Error al cancelar la cita: ' + (err.message || ''), 'error');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -171,7 +188,7 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
                   </div>
 
                   {/* Acciones Rápidas del Barbero */}
-                  <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1F2937]/50">
+                  <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1F2937]/50 flex-wrap">
                     {!isCompleted ? (
                       <>
                         <button
@@ -192,12 +209,14 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
                           Mover
                         </button>
 
+                        {/* Botón Claro y Responsivo para Cancelar Cita */}
                         <button
-                          onClick={() => onCancelAppointment(app.id)}
-                          className="min-h-[44px] px-2.5 py-2 rounded-xl bg-[#2A1215] hover:bg-red-900/40 text-red-400 border border-red-900/40 text-xs font-semibold flex items-center gap-1 transition-all"
+                          onClick={() => setAppToCancel(app)}
+                          className="min-h-[44px] px-3.5 py-2 rounded-xl bg-[#2A1215] hover:bg-red-900/40 text-red-400 hover:text-red-300 border border-red-900/40 text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95"
                           title="Cancelar cita y liberar horario"
                         >
-                          <XCircle className="w-4 h-4" />
+                          <XCircle className="w-4 h-4 shrink-0" />
+                          <span>Cancelar</span>
                         </button>
                       </>
                     ) : (
@@ -242,7 +261,7 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
                 {block && (
                   <button
                     onClick={() => onUnblockSlot(block.id)}
-                    className="text-xs text-red-400 hover:text-white underline p-2"
+                    className="min-h-[44px] px-3 py-2 text-xs font-semibold text-red-400 hover:text-white underline rounded-xl"
                   >
                     Desbloquear
                   </button>
@@ -275,6 +294,69 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
           );
         })}
       </div>
+
+      {/* ================= MODAL DE CONFIRMACIÓN DE CANCELACIÓN ================= */}
+      {appToCancel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#12161D] border border-red-900/60 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-4">
+            
+            <div className="flex items-center gap-3 text-red-400">
+              <div className="p-3 rounded-2xl bg-red-950/60 border border-red-900/50 shrink-0">
+                <AlertTriangle className="w-6 h-6 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white font-['Space_Grotesk']">
+                  ¿Cancelar esta Cita?
+                </h3>
+                <p className="text-xs text-[#94A3B8]">
+                  El horario se liberará al instante en la vista pública.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-[#090B0E] p-4 rounded-2xl border border-[#1F2937] text-xs space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-[#94A3B8]">Cliente:</span>
+                <span className="font-bold text-white text-sm">{appToCancel.clientName}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#94A3B8]">Servicio:</span>
+                <span className="text-[#76C81C] font-semibold">{appToCancel.serviceName}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#94A3B8]">Horario:</span>
+                <span className="text-white font-mono">{minutesToTime12h(appToCancel.startMinutes)} ({appToCancel.date})</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#94A3B8]">Folio:</span>
+                <span className="text-[#8CE026] font-mono font-bold">{appToCancel.folio}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isCancelling}
+                onClick={() => setAppToCancel(null)}
+                className="min-h-[48px] py-3 px-4 rounded-2xl bg-[#1A202C] hover:bg-[#262F3F] text-[#D1D5DB] text-xs font-bold transition-all order-2 sm:order-1"
+              >
+                No, Mantener Cita
+              </button>
+
+              <button
+                type="button"
+                disabled={isCancelling}
+                onClick={handleConfirmCancel}
+                className="min-h-[48px] py-3 px-4 rounded-2xl bg-[#DC2626] hover:bg-[#EF4444] text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-950/60 order-1 sm:order-2"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>{isCancelling ? 'Cancelando...' : 'Sí, Cancelar Cita'}</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

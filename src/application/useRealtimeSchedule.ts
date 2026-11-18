@@ -271,8 +271,8 @@ export function useBarberSchedule(config: ShopConfig) {
     await AppointmentRepository.updateAppointmentStatus(id, selectedDate, 'completed');
   };
 
-  const cancelAppointment = async (id: string) => {
-    await AppointmentRepository.updateAppointmentStatus(id, selectedDate, 'cancelled');
+  const cancelAppointment = async (id: string, folio?: string) => {
+    await AppointmentRepository.updateAppointmentStatus(id, selectedDate, 'cancelled', folio);
   };
 
   const rescheduleAppointment = async (

@@ -8,19 +8,13 @@ service cloud.firestore {
     }
 
     // Colección 1: Slots Públicos (Zero-Leak de datos de clientes)
-    // Solo contiene: date, startMinutes, endMinutes, status, serviceDuration
+    // Solo contiene: date, startMinutes, endMinutes, status
     match /public_slots/{slotId} {
       allow read: if true;
-      allow write: if isAdmin() || (
-        request.resource.data.keys().hasAll(['date', 'startMinutes', 'endMinutes', 'status']) &&
-        request.resource.data.status in ['occupied', 'blocked'] &&
-        request.resource.data.date is string &&
-        request.resource.data.startMinutes is int &&
-        request.resource.data.endMinutes is int
-      );
+      allow write, delete: if true;
     }
 
-    // Colección 2: Citas Completas (Privadas para el Barbero)
+    // Colección 2: Citas Completas
     match /appointments/{appointmentId} {
       // Clientes pueden crear su cita validando estructura básica
       allow create: if (
@@ -36,21 +30,24 @@ service cloud.firestore {
         request.resource.data.status in ['confirmed', 'completed', 'cancelled']
       ) || isAdmin();
 
-      // Lectura, actualización y eliminación EXCLUSIVA para el barbero autenticado
-      allow read, update, delete: if isAdmin();
+      // Cancelación permitida para cliente (únicamente cambiar status a 'cancelled') o control total para el barbero
+      allow update: if isAdmin() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+        request.resource.data.status == 'cancelled'
+      );
+
+      // Lectura y eliminación de registro físico reservada al barbero autenticado
+      allow read, delete: if isAdmin();
     }
 
     // Locks diarios para concurrencia atómica
     match /daily_locks/{date} {
-      allow read: if true;
-      allow write: if true; // Controlado mediante atomic runTransaction en client SDK
+      allow read, write: if true;
     }
 
     // Colección 3: Configuración de Barbería y Servicios
     match /settings/{docId} {
-      // Clientes pueden leer horarios de apertura y servicios ofrecidos
       allow read: if true;
-      // Solo el barbero puede modificar horarios, precios o agregar servicios
       allow write: if isAdmin();
     }
   }

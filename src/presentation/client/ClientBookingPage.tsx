@@ -28,6 +28,7 @@ import {
   parseCanonicalDate
 } from '../../domain/scheduleEngine';
 import { addDays, format } from 'date-fns';
+import { AppointmentRepository } from '../../infrastructure/appointmentRepository';
 import { BookingReceipt } from './BookingReceipt';
 import { useToast } from '../shared/ToastProvider';
 import { Header } from '../shared/Header';
@@ -119,6 +120,17 @@ export const ClientBookingPage: React.FC = () => {
     }
   };
 
+  const handleCancelBooking = async (id: string, date: string, folio: string): Promise<boolean> => {
+    try {
+      await AppointmentRepository.updateAppointmentStatus(id, date, 'cancelled', folio);
+      showToast('Tu cita ha sido cancelada y el horario fue liberado.', 'info');
+      return true;
+    } catch (err: any) {
+      showToast('No se pudo cancelar la cita. Por favor comunícate con la barbería.', 'error');
+      return false;
+    }
+  };
+
   if (confirmedAppointment) {
     return (
       <div className="min-h-screen bg-[#090B0E] flex flex-col">
@@ -127,6 +139,7 @@ export const ClientBookingPage: React.FC = () => {
           <BookingReceipt
             appointment={confirmedAppointment}
             shopConfig={config}
+            onCancelBooking={handleCancelBooking}
             onNewBooking={() => {
               setConfirmedAppointment(null);
               setSelectedSlot(null);

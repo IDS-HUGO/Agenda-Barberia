@@ -40,7 +40,7 @@ import { useToast } from '../shared/ToastProvider';
 export const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { isAuthenticated, userEmail, logout, isFirebaseConfigured, authMode } = useBarberAuth();
+  const { isAuthenticated, userEmail, logout, isFirebaseConfigured } = useBarberAuth();
   const { config, services, updateConfig, addService, updateService, deleteService } = useShopSettings();
 
   const {

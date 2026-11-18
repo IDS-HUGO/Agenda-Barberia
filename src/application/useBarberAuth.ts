@@ -7,14 +7,8 @@ import {
 } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '../infrastructure/firebase';
 
-const LOCAL_SESSION_KEY = 'barber_admin_local_session';
-const DEFAULT_FALLBACK_PIN = import.meta.env.VITE_ADMIN_FALLBACK_PIN || '1234';
-
 export function useBarberAuth() {
   const [user, setUser] = useState<User | null>(null);
-  const [isPinAuthenticated, setIsPinAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem(LOCAL_SESSION_KEY) === 'true';
-  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -31,34 +25,34 @@ export function useBarberAuth() {
 
   const loginWithEmail = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     if (!isFirebaseConfigured || !auth) {
-      return { success: false, error: 'Firebase no está configurado todavía.' };
+      return {
+        success: false,
+        error: 'Firebase no está configurado. Revisa las variables en tu archivo .env'
+      };
     }
     try {
-      await signInWithEmailAndPassword(auth, email, pass);
+      await signInWithEmailAndPassword(auth, email.trim(), pass);
       return { success: true };
     } catch (err: any) {
       let msg = 'Error al iniciar sesión.';
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+      if (
+        err.code === 'auth/invalid-credential' ||
+        err.code === 'auth/wrong-password' ||
+        err.code === 'auth/user-not-found'
+      ) {
         msg = 'Correo electrónico o contraseña incorrectos.';
+      } else if (err.code === 'auth/invalid-email') {
+        msg = 'El formato de correo no es válido.';
       } else if (err.code === 'auth/too-many-requests') {
-        msg = 'Demasiados intentos fallidos. Intenta más tarde.';
+        msg = 'Demasiados intentos fallidos. Por seguridad, espera unos minutos.';
+      } else if (err.code === 'auth/network-request-failed') {
+        msg = 'Error de conexión. Verifica tu acceso a internet.';
       }
       return { success: false, error: msg };
     }
   };
 
-  const loginWithPin = (pin: string): { success: boolean; error?: string } => {
-    if (pin.trim() === DEFAULT_FALLBACK_PIN.trim()) {
-      sessionStorage.setItem(LOCAL_SESSION_KEY, 'true');
-      setIsPinAuthenticated(true);
-      return { success: true };
-    }
-    return { success: false, error: 'PIN incorrecto. El PIN por defecto es 1234.' };
-  };
-
   const logout = async () => {
-    sessionStorage.removeItem(LOCAL_SESSION_KEY);
-    setIsPinAuthenticated(false);
     if (auth && isFirebaseConfigured) {
       try {
         await firebaseSignOut(auth);
@@ -66,19 +60,17 @@ export function useBarberAuth() {
         console.warn('Error en signout:', err);
       }
     }
+    setUser(null);
   };
 
-  const isAuthenticated = Boolean(user || isPinAuthenticated);
-  const authMode: 'firebase' | 'pin' | 'none' = user ? 'firebase' : isPinAuthenticated ? 'pin' : 'none';
+  const isAuthenticated = Boolean(user);
 
   return {
     isAuthenticated,
-    userEmail: user?.email || (isPinAuthenticated ? 'Modo PIN Local' : null),
-    authMode,
+    userEmail: user?.email || null,
     isFirebaseConfigured,
     isLoading,
     loginWithEmail,
-    loginWithPin,
     logout
   };
 }

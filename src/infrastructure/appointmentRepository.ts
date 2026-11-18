@@ -377,7 +377,8 @@ export const AppointmentRepository = {
   async updateAppointmentStatus(
     id: string,
     date: string,
-    status: AppointmentStatus
+    status: AppointmentStatus,
+    folio?: string
   ): Promise<void> {
     if (isFirebaseConfigured && db) {
       const appRef = doc(db, 'appointments', id);
@@ -398,7 +399,7 @@ export const AppointmentRepository = {
             const lockSnap = await txn.get(lockDocRef);
             if (lockSnap.exists()) {
               const ranges = (lockSnap.data().ranges || []).filter(
-                (r: any) => r.folio !== id && r.id !== id
+                (r: any) => (folio ? r.folio !== folio : true) && r.folio !== id && r.id !== id
               );
               txn.update(lockDocRef, { ranges });
             }
