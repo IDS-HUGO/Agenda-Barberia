@@ -1,0 +1,23 @@
+{
+  "short_name": "Barber&Shopping",
+  "name": "BARBER Y SHOPPING — Sistema de Agenda",
+  "icons": [
+    {
+      "src": "/logo-barber.jpeg",
+      "type": "image/jpeg",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-barber.jpeg",
+      "type": "image/jpeg",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#090B0E",
+  "theme_color": "#090B0E",
+  "display": "standalone",
+  "orientation": "portrait-primary"
+}
