@@ -48,7 +48,7 @@ cp .env.example .env
 npm run dev
 ```
 - Vista Clientes: `http://localhost:5173/`
-- Panel Barbero: `http://localhost:5173/admin` (PIN por defecto en modo local: `1234`)
+- Panel Barbero: `http://localhost:5173/admin`
 
 ---
 
@@ -58,7 +58,7 @@ npm run dev
 2. Haz clic en **"Crear un proyecto"** y nómbralo `barber-y-shopping`.
 3. Ve a **Autenticación (Firebase Auth)**:
    - Activa el proveedor de **Correo electrónico/Contraseña**.
-   - En la pestaña **Users**, agrega el correo y contraseña del barbero (ej. `admin@barberyshopping.com` / `BarberAlien2026*`).
+   - En la pestaña **Users**, agrega el correo y tu contraseña personalizada de administrador.
 4. Ve a **Firestore Database**:
    - Haz clic en **Crear base de datos** (elige ubicación `us-central` o la más cercana a México).
    - Inicia en modo de prueba o producción.

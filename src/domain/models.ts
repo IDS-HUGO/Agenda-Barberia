@@ -1,6 +1,13 @@
 export type AppointmentStatus = 'confirmed' | 'completed' | 'cancelled';
 export type AppointmentSource = 'client_web' | 'barber_manual';
 
+export interface Barber {
+  id: string;
+  name: string;
+  color: string; // Para insignia visual en el panel
+  isActive: boolean;
+}
+
 export interface Appointment {
   id: string;
   folio: string;
@@ -10,10 +17,12 @@ export interface Appointment {
   serviceName: string;
   price: number;
   durationMinutes: number;
+  barberId: string; // 'barber-1' | 'barber-2' | 'barber-3'
+  barberName: string;
   date: string; // "YYYY-MM-DD"
   startTime: string; // "HH:mm"
   endTime: string; // "HH:mm"
-  startMinutes: number; // Minutos desde medianoche (ej. 600 = 10:00)
+  startMinutes: number; // Minutos desde medianoche (ej. 540 = 09:00)
   endMinutes: number;
   status: AppointmentStatus;
   source: AppointmentSource;
@@ -36,15 +45,18 @@ export interface PublicSlot {
   startTime: string; // "HH:mm"
   endTime: string; // "HH:mm"
   status: SlotAvailabilityStatus;
-  occupiedReason?: string; // Para el barbero (en público siempre oculto)
-  appointment?: Appointment; // Solo disponible en vista del barbero
+  availableBarbersCount: number; // Cuántos barberos están libres (0 a 3)
+  freeBarbers: Barber[]; // Lista de barberos libres en este bloque
+  occupiedReason?: string;
+  appointment?: Appointment; // Cita individual (compatibilidad)
+  appointments?: Appointment[]; // Citas en este bloque (vista del barbero)
 }
 
 export interface ServiceItem {
   id: string;
   name: string;
   price: number; // MXN
-  durationMinutes: number; // 30, 45, 60, etc.
+  durationMinutes: number; // 40, 60, etc.
   description: string;
   icon?: string;
   isActive: boolean;
@@ -55,6 +67,7 @@ export interface BlockedSlot {
   date: string; // "YYYY-MM-DD"
   startMinutes: number;
   endMinutes: number;
+  barberId?: string; // Opcional: si bloquea a un barbero específico o a todos
   reason?: string;
 }
 
@@ -62,55 +75,67 @@ export interface ShopConfig {
   shopName: string;
   shopPhone: string; // WhatsApp para confirmación (10 dígitos)
   shopAddress: string;
-  openingMinutes: number; // default 600 (10:00 AM)
-  closingMinutes: number; // default 1260 (09:00 PM / 21:00)
-  slotIntervalMinutes: number; // default 30 min
-  activeDays: number[]; // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+  slotIntervalMinutes: number; // 40 min por corte
+  weekdayOpeningMinutes: number; // 540 (09:00 AM)
+  weekdayClosingMinutes: number; // 1140 (07:00 PM / 19:00)
+  sundayOpeningMinutes: number; // 540 (09:00 AM)
+  sundayClosingMinutes: number; // 900 (03:00 PM / 15:00)
+  activeDays: number[]; // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado (Abierto todos los días)
+  barbers: Barber[];
   allowSoundNotifications: boolean;
 }
 
+export const DEFAULT_BARBERS: Barber[] = [
+  { id: 'barber-1', name: 'Barbero 1', color: '#76C81C', isActive: true },
+  { id: 'barber-2', name: 'Barbero 2', color: '#38BDF8', isActive: true },
+  { id: 'barber-3', name: 'Barbero 3', color: '#F59E0B', isActive: true }
+];
+
 export const DEFAULT_SERVICES: ServiceItem[] = [
   {
-    id: 'srv-corte-fade',
-    name: 'Corte Clásico / Fade',
+    id: 'srv-corte',
+    name: 'Corte',
     price: 180,
-    durationMinutes: 30,
-    description: 'Degradado a elección (Low, Mid, High Fade) con navaja, acabado limpio y peinado profesional.',
+    durationMinutes: 40,
+    description: 'Corte clásico o degradado fade con navaja y peinado profesional.',
     isActive: true
   },
   {
-    id: 'srv-barba-vip',
-    name: 'Arreglo de Barba VIP',
-    price: 150,
-    durationMinutes: 30,
-    description: 'Perfilado con navaja japonesa, toalla caliente relajante, aceites esenciales y bálsamo.',
+    id: 'srv-corte-cejas',
+    name: 'Corte más cejas',
+    price: 200,
+    durationMinutes: 40,
+    description: 'Corte a elección más perfilado y diseño de cejas con navaja.',
     isActive: true
   },
   {
-    id: 'srv-combo-alien',
-    name: 'Combo Alien: Corte + Barba',
+    id: 'srv-corte-barba',
+    name: 'Corte y barba',
+    price: 230,
+    durationMinutes: 60,
+    description: 'Corte completo, toalla caliente y ritual de barba con aceites.',
+    isActive: true
+  },
+  {
+    id: 'srv-servicio-completo',
+    name: 'Servicio completo',
     price: 300,
     durationMinutes: 60,
-    description: 'Servicio estelar completo: Fade de alta precisión, ritual de barba con toalla caliente y ceja.',
-    isActive: true
-  },
-  {
-    id: 'srv-diseno-ceja',
-    name: 'Diseño / Gremas + Ceja',
-    price: 120,
-    durationMinutes: 30,
-    description: 'Diseño freestyle o gremas con navaja y perfilado detallado de cejas con máquina y navaja.',
+    description: 'Experiencia total: Corte fade, ritual de barba, cejas y peinado VIP.',
     isActive: true
   }
 ];
 
 export const DEFAULT_SHOP_CONFIG: ShopConfig = {
   shopName: 'BARBER Y SHOPPING',
-  shopPhone: '5219999999999', // Placeholder configurable
+  shopPhone: '5219999999999',
   shopAddress: 'Plaza Shopping - Pasillo Central #12',
-  openingMinutes: 600, // 10:00 AM
-  closingMinutes: 1260, // 09:00 PM (21:00)
-  slotIntervalMinutes: 30,
-  activeDays: [1, 2, 3, 4, 5, 6], // Lunes a Sábado (Descanso Domingo)
+  slotIntervalMinutes: 40, // 40 minutos por corte
+  weekdayOpeningMinutes: 540, // 09:00 AM
+  weekdayClosingMinutes: 1140, // 07:00 PM (19:00)
+  sundayOpeningMinutes: 540, // 09:00 AM
+  sundayClosingMinutes: 900, // 03:00 PM (15:00)
+  activeDays: [0, 1, 2, 3, 4, 5, 6], // Abierto de Lunes a Domingo
+  barbers: DEFAULT_BARBERS,
   allowSoundNotifications: true
 };

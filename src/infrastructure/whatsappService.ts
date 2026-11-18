@@ -6,11 +6,9 @@ import { formatFriendlyDate, minutesToTime12h } from '../domain/scheduleEngine';
  */
 export function normalizeWhatsAppNumber(rawPhone: string): string {
   const digits = rawPhone.replace(/\D/g, '');
-  // Si ya tiene 52 al inicio y 12 dígitos en total:
   if (digits.length === 12 && digits.startsWith('52')) {
     return digits;
   }
-  // Si tiene 10 dígitos (estándar México):
   if (digits.length === 10) {
     return `52${digits}`;
   }
@@ -35,6 +33,7 @@ export function buildClientConfirmationWhatsAppUrl(
 
 🎟️ *Folio:* \`${appointment.folio}\`
 👤 *Cliente:* ${appointment.clientName}
+💈 *Barbero:* ${appointment.barberName || 'Barbero General'}
 ✂️ *Servicio:* ${appointment.serviceName}
 💰 *Total:* $${appointment.price} MXN
 📅 *Fecha:* ${dateFormatted}
@@ -58,6 +57,7 @@ export function buildBarberToClientWhatsAppUrl(appointment: Appointment): string
 
 ¡Hola ${appointment.clientName}! Te escribimos de BARBER Y SHOPPING respecto a tu cita:
 
+💈 *Barbero Asignado:* ${appointment.barberName || 'Barbero 1'}
 ✂️ *Servicio:* ${appointment.serviceName}
 📅 *Fecha:* ${dateFormatted}
 ⏰ *Hora:* ${timeFormatted}

@@ -5,7 +5,8 @@ import {
   PublicSlot,
   ShopConfig,
   ServiceItem,
-  AppointmentStatus
+  Barber,
+  DEFAULT_BARBERS
 } from '../domain/models';
 import {
   calculateScheduleSlots,
@@ -18,7 +19,6 @@ import { isFirebaseConfigured } from '../infrastructure/firebase';
 
 /**
  * Sintetizador Web Audio API para alerta sonora cuando entra una nueva reserva.
- * 100% independiente de archivos externos MP3.
  */
 export function playNotificationChime() {
   try {
@@ -45,21 +45,21 @@ export function playNotificationChime() {
       osc.stop(ctx.currentTime + delay + duration);
     };
 
-    // Tono futurista de dos notas ascendentes (Re5 -> La5)
     playTone(587.33, 0, 0.2);
     playTone(880.0, 0.14, 0.35);
   } catch {
-    // Si la política de autoplay bloquea el audio, continúa sin fallar
+    // Autoplay policy bypass
   }
 }
 
 /**
- * Hook para la Vista Pública del Cliente
+ * Hook para la Vista Pública del Cliente (Soporte Multi-Barbero)
  */
 export function useClientBooking(config: ShopConfig, defaultService?: ServiceItem) {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayCanonical());
   const [selectedService, setSelectedService] = useState<ServiceItem | undefined>(defaultService);
-  const [occupiedSlots, setOccupiedSlots] = useState<{ startMinutes: number; endMinutes: number }[]>([]);
+  const [selectedBarberId, setSelectedBarberId] = useState<string>('any'); // 'any' o id específico
+  const [occupiedSlots, setOccupiedSlots] = useState<{ startMinutes: number; endMinutes: number; barberId: string }[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -87,9 +87,8 @@ export function useClientBooking(config: ShopConfig, defaultService?: ServiceIte
     };
   }, [selectedDate]);
 
-  // Generar la grilla calculada
+  // Generar la grilla calculada multi-barbero
   const slots: PublicSlot[] = useMemo(() => {
-    // Convertir occupiedSlots a appointments simulados para el cálculo matemático
     const simulatedAppointments: Appointment[] = occupiedSlots.map((s, idx) => ({
       id: `sim_${idx}`,
       folio: '',
@@ -99,6 +98,8 @@ export function useClientBooking(config: ShopConfig, defaultService?: ServiceIte
       serviceName: 'Ocupado',
       price: 0,
       durationMinutes: s.endMinutes - s.startMinutes,
+      barberId: s.barberId,
+      barberName: '',
       date: selectedDate,
       startTime: minutesToTime(s.startMinutes),
       endTime: minutesToTime(s.endMinutes),
@@ -109,15 +110,18 @@ export function useClientBooking(config: ShopConfig, defaultService?: ServiceIte
       createdAt: ''
     }));
 
-    const duration = selectedService ? selectedService.durationMinutes : 30;
+    const duration = selectedService ? selectedService.durationMinutes : 40;
+    const filterBarber = selectedBarberId === 'any' ? undefined : selectedBarberId;
+
     return calculateScheduleSlots(
       selectedDate,
       config,
       simulatedAppointments,
       blockedSlots,
-      duration
+      duration,
+      filterBarber
     );
-  }, [selectedDate, config, occupiedSlots, blockedSlots, selectedService]);
+  }, [selectedDate, config, occupiedSlots, blockedSlots, selectedService, selectedBarberId]);
 
   const confirmBooking = async (params: {
     clientName: string;
@@ -136,6 +140,16 @@ export function useClientBooking(config: ShopConfig, defaultService?: ServiceIte
     const startTime = minutesToTime(startMinutes);
     const endTime = minutesToTime(endMinutes);
 
+    // Asignación de Barbero:
+    // Si eligió 'any', tomar el primer barbero libre en este slot. Si eligió uno en particular, usar ese.
+    let assignedBarber: Barber;
+    if (selectedBarberId !== 'any') {
+      const match = config.barbers.find((b) => b.id === selectedBarberId);
+      assignedBarber = match || params.slot.freeBarbers[0] || DEFAULT_BARBERS[0];
+    } else {
+      assignedBarber = params.slot.freeBarbers[0] || config.barbers[0] || DEFAULT_BARBERS[0];
+    }
+
     const newAppointment: Omit<Appointment, 'id'> = {
       folio,
       clientName: params.clientName.trim(),
@@ -144,6 +158,8 @@ export function useClientBooking(config: ShopConfig, defaultService?: ServiceIte
       serviceName: selectedService.name,
       price: selectedService.price,
       durationMinutes: duration,
+      barberId: assignedBarber.id,
+      barberName: assignedBarber.name,
       date: selectedDate,
       startTime,
       endTime,
@@ -163,6 +179,8 @@ export function useClientBooking(config: ShopConfig, defaultService?: ServiceIte
     setSelectedDate,
     selectedService,
     setSelectedService,
+    selectedBarberId,
+    setSelectedBarberId,
     slots,
     isLoading,
     confirmBooking
@@ -170,10 +188,11 @@ export function useClientBooking(config: ShopConfig, defaultService?: ServiceIte
 }
 
 /**
- * Hook para el Panel de Administración del Barbero
+ * Hook para el Panel de Administración del Barbero (Multi-Barbero)
  */
 export function useBarberSchedule(config: ShopConfig) {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayCanonical());
+  const [selectedBarberFilter, setSelectedBarberFilter] = useState<string>('all'); // 'all' o id específico
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
@@ -182,7 +201,6 @@ export function useBarberSchedule(config: ShopConfig) {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Rastrear citas previas para detectar nuevas y reproducir alerta
   const prevAppointmentsCountRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -192,7 +210,6 @@ export function useBarberSchedule(config: ShopConfig) {
     const unsubApp = AppointmentRepository.subscribeToAppointments(
       selectedDate,
       (list) => {
-        // Alerta sonora si entra una nueva reserva web
         if (
           prevAppointmentsCountRef.current !== null &&
           list.length > prevAppointmentsCountRef.current
@@ -232,29 +249,52 @@ export function useBarberSchedule(config: ShopConfig) {
     });
   };
 
-  // Grilla combinada para el tablero del barbero
+  // Filtrar citas según el barbero seleccionado en el admin
+  const filteredAppointments = useMemo(() => {
+    if (selectedBarberFilter === 'all') return appointments;
+    return appointments.filter((app) => app.barberId === selectedBarberFilter);
+  }, [appointments, selectedBarberFilter]);
+
+  // Grilla combinada
   const slots: PublicSlot[] = useMemo(() => {
+    const filterBarber = selectedBarberFilter === 'all' ? undefined : selectedBarberFilter;
     return calculateScheduleSlots(
       selectedDate,
       config,
       appointments,
       blockedSlots,
-      30
+      40,
+      filterBarber
     );
-  }, [selectedDate, config, appointments, blockedSlots]);
+  }, [selectedDate, config, appointments, blockedSlots, selectedBarberFilter]);
 
-  // Estadísticas del día
+  // Estadísticas del día con desglose por barbero
   const stats = useMemo(() => {
     const active = appointments.filter((a) => a.date === selectedDate);
     const confirmed = active.filter((a) => a.status === 'confirmed');
     const completed = active.filter((a) => a.status === 'completed');
     const cancelled = active.filter((a) => a.status === 'cancelled');
 
-    // Los ingresos del día son citas completadas + confirmadas estimadas
     const totalRealRevenue = completed.reduce((sum, a) => sum + a.price, 0);
     const projectedRevenue = active
       .filter((a) => a.status !== 'cancelled')
       .reduce((sum, a) => sum + a.price, 0);
+
+    // Desglose individual de cada barbero
+    const barbers = config.barbers || DEFAULT_BARBERS;
+    const perBarber: Record<string, { name: string; completedCount: number; revenue: number }> = {};
+    barbers.forEach((b) => {
+      perBarber[b.id] = { name: b.name, completedCount: 0, revenue: 0 };
+    });
+
+    completed.forEach((app) => {
+      const bId = app.barberId || 'barber-1';
+      if (!perBarber[bId]) {
+        perBarber[bId] = { name: app.barberName || 'Barbero', completedCount: 0, revenue: 0 };
+      }
+      perBarber[bId].completedCount += 1;
+      perBarber[bId].revenue += app.price;
+    });
 
     return {
       total: active.length,
@@ -262,9 +302,10 @@ export function useBarberSchedule(config: ShopConfig) {
       completed: completed.length,
       cancelled: cancelled.length,
       totalRealRevenue,
-      projectedRevenue
+      projectedRevenue,
+      perBarber
     };
-  }, [appointments, selectedDate]);
+  }, [appointments, selectedDate, config.barbers]);
 
   // Acciones
   const markAsCompleted = async (id: string) => {
@@ -278,12 +319,14 @@ export function useBarberSchedule(config: ShopConfig) {
   const rescheduleAppointment = async (
     appointment: Appointment,
     newDate: string,
-    newStartMinutes: number
+    newStartMinutes: number,
+    newBarberId?: string
   ) => {
     return await AppointmentRepository.rescheduleAppointment(
       appointment,
       newDate,
-      newStartMinutes
+      newStartMinutes,
+      newBarberId
     );
   };
 
@@ -291,6 +334,7 @@ export function useBarberSchedule(config: ShopConfig) {
     clientName: string;
     clientPhone: string;
     service: ServiceItem;
+    barber: Barber;
     startMinutes: number;
     notes?: string;
   }): Promise<{ success: boolean; appointment?: Appointment; error?: string }> => {
@@ -306,6 +350,8 @@ export function useBarberSchedule(config: ShopConfig) {
       serviceName: params.service.name,
       price: params.service.price,
       durationMinutes: duration,
+      barberId: params.barber.id,
+      barberName: params.barber.name,
       date: selectedDate,
       startTime: minutesToTime(params.startMinutes),
       endTime: minutesToTime(endMinutes),
@@ -320,11 +366,17 @@ export function useBarberSchedule(config: ShopConfig) {
     return await AppointmentRepository.createAppointmentAtomic(newApp);
   };
 
-  const blockSlot = async (startMinutes: number, durationMinutes: number = 30, reason?: string) => {
+  const blockSlot = async (
+    startMinutes: number,
+    durationMinutes: number = 40,
+    barberId?: string,
+    reason?: string
+  ) => {
     await AppointmentRepository.addBlockedSlot({
       date: selectedDate,
       startMinutes,
       endMinutes: startMinutes + durationMinutes,
+      barberId,
       reason: reason || 'Bloqueo manual'
     });
   };
@@ -336,7 +388,10 @@ export function useBarberSchedule(config: ShopConfig) {
   return {
     selectedDate,
     setSelectedDate,
-    appointments,
+    selectedBarberFilter,
+    setSelectedBarberFilter,
+    appointments: filteredAppointments,
+    allAppointments: appointments,
     blockedSlots,
     slots,
     stats,

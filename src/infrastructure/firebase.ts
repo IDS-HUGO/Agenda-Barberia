@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
-  initializeFirestore, 
+  initializeFirestore,
+  getFirestore,
   persistentLocalCache, 
   persistentMultipleTabManager,
   Firestore 
@@ -34,16 +35,21 @@ if (isFirebaseConfigured) {
   try {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     
-    // Inicialización resiliente con caché persistente y soporte multiventana
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      })
-    });
+    // Inicialización resiliente con caché persistente y fallback seguro
+    try {
+      db = initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        })
+      });
+    } catch {
+      // Si ya existía instancia previa (hot-reload o re-render)
+      db = getFirestore(app);
+    }
 
     auth = getAuth(app);
   } catch (error) {
-    console.warn('[Firebase] Error al inicializar Firestore con caché persistente, operando fallback:', error);
+    console.warn('[Firebase] Advertencia en inicialización de Firebase:', error);
   }
 }
 

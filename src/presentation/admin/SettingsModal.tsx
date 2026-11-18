@@ -13,13 +13,16 @@ import {
   Save,
   CheckCircle2,
   FileSpreadsheet,
-  FileJson
+  FileJson,
+  FileText,
+  UserCheck
 } from 'lucide-react';
-import { ServiceItem, ShopConfig } from '../../domain/models';
+import { Barber, ServiceItem, ShopConfig } from '../../domain/models';
 import { minutesToTime12h, timeToMinutes, minutesToTime } from '../../domain/scheduleEngine';
 import {
   exportAppointmentsToCsv,
   exportAppointmentsToJson,
+  exportAppointmentsToPdf,
   readBackupJsonFile
 } from '../../infrastructure/backupService';
 import { AppointmentRepository } from '../../infrastructure/appointmentRepository';
@@ -34,6 +37,7 @@ interface SettingsModalProps {
   onAddService: (service: Omit<ServiceItem, 'id'>) => Promise<void>;
   onUpdateService: (id: string, updates: Partial<ServiceItem>) => Promise<void>;
   onDeleteService: (id: string) => Promise<void>;
+  onUpdateBarbers?: (barbers: Barber[]) => Promise<void>;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -44,22 +48,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpdateConfig,
   onAddService,
   onUpdateService,
-  onDeleteService
+  onDeleteService,
+  onUpdateBarbers
 }) => {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<'general' | 'services' | 'backups'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'barbers' | 'services' | 'backups'>('general');
 
-  // Form states for config
-  const [openingTime, setOpeningTime] = useState(minutesToTime(config.openingMinutes));
-  const [closingTime, setClosingTime] = useState(minutesToTime(config.closingMinutes));
-  const [slotInterval, setSlotInterval] = useState(config.slotIntervalMinutes);
+  // Form states for general config
+  const [openingTime, setOpeningTime] = useState(minutesToTime(config.weekdayOpeningMinutes ?? 540));
+  const [closingTime, setClosingTime] = useState(minutesToTime(config.weekdayClosingMinutes ?? 1140));
+  const [sundayOpeningTime, setSundayOpeningTime] = useState(minutesToTime(config.sundayOpeningMinutes ?? 540));
+  const [sundayClosingTime, setSundayClosingTime] = useState(minutesToTime(config.sundayClosingMinutes ?? 900));
+  const [slotInterval, setSlotInterval] = useState(config.slotIntervalMinutes ?? 40);
   const [shopPhone, setShopPhone] = useState(config.shopPhone);
   const [shopAddress, setShopAddress] = useState(config.shopAddress);
 
+  // Form states for barbers
+  const [barberList, setBarberList] = useState<Barber[]>(config.barbers || []);
+
   // New service form state
   const [newServiceName, setNewServiceName] = useState('');
-  const [newServicePrice, setNewServicePrice] = useState(150);
-  const [newServiceDuration, setNewServiceDuration] = useState(30);
+  const [newServicePrice, setNewServicePrice] = useState(180);
+  const [newServiceDuration, setNewServiceDuration] = useState(40);
   const [newServiceDesc, setNewServiceDesc] = useState('');
 
   if (!isOpen) return null;
@@ -68,21 +78,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     e.preventDefault();
     const openMins = timeToMinutes(openingTime);
     const closeMins = timeToMinutes(closingTime);
+    const sunOpenMins = timeToMinutes(sundayOpeningTime);
+    const sunCloseMins = timeToMinutes(sundayClosingTime);
 
     if (openMins >= closeMins) {
-      showToast('La hora de apertura debe ser anterior a la de cierre.', 'error');
+      showToast('La hora de apertura (Lun-Sáb) debe ser anterior a la de cierre.', 'error');
+      return;
+    }
+    if (sunOpenMins >= sunCloseMins) {
+      showToast('La hora de apertura del domingo debe ser anterior a la de cierre.', 'error');
       return;
     }
 
     await onUpdateConfig({
-      openingMinutes: openMins,
-      closingMinutes: closeMins,
+      weekdayOpeningMinutes: openMins,
+      weekdayClosingMinutes: closeMins,
+      sundayOpeningMinutes: sunOpenMins,
+      sundayClosingMinutes: sunCloseMins,
       slotIntervalMinutes: Number(slotInterval),
       shopPhone: shopPhone.replace(/\D/g, ''),
       shopAddress
     });
 
-    showToast('Configuración guardada.', 'success');
+    showToast('Horarios y configuración guardados.', 'success');
+  };
+
+  const handleBarberNameChange = (id: string, newName: string) => {
+    setBarberList((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, name: newName } : b))
+    );
+  };
+
+  const handleSaveBarbers = async () => {
+    if (onUpdateBarbers) {
+      await onUpdateBarbers(barberList);
+    } else {
+      await onUpdateConfig({ barbers: barberList });
+    }
+    showToast('Equipo de barberos actualizado correctamente.', 'success');
   };
 
   const handleAddServiceSubmit = async (e: React.FormEvent) => {
@@ -103,6 +136,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setNewServiceName('');
     setNewServiceDesc('');
     showToast('Nuevo servicio agregado al catálogo.', 'success');
+  };
+
+  const handleExportPdf = async () => {
+    const all = await AppointmentRepository.getAllAppointments();
+    exportAppointmentsToPdf(all, 'Historial Completo de Citas');
+    showToast('Reporte PDF generado.', 'success');
   };
 
   const handleExportJson = async () => {
@@ -149,19 +188,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             Ajustes de la Barbería
           </h3>
           <p className="text-xs text-[#94A3B8] mt-1">
-            Personaliza horarios de atención, catálogo de precios y copias de seguridad.
+            Personaliza horarios, equipo de barberos, servicios y respaldos.
           </p>
         </div>
 
         {/* Tabs */}
-        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 bg-[#090B0E] p-1.5 rounded-2xl my-5 border border-[#1F2937]">
+        <div className="grid grid-cols-4 gap-1 sm:gap-2 bg-[#090B0E] p-1.5 rounded-2xl my-5 border border-[#1F2937]">
           <button
             onClick={() => setActiveTab('general')}
             className={`min-h-[44px] py-2 px-1 rounded-xl text-[11px] sm:text-xs font-bold text-center transition-all ${
               activeTab === 'general' ? 'bg-[#1A202C] text-[#8CE026] shadow-sm' : 'text-[#94A3B8] hover:text-white'
             }`}
           >
-            Horarios &amp; Info
+            Horarios
+          </button>
+          <button
+            onClick={() => setActiveTab('barbers')}
+            className={`min-h-[44px] py-2 px-1 rounded-xl text-[11px] sm:text-xs font-bold text-center transition-all ${
+              activeTab === 'barbers' ? 'bg-[#1A202C] text-[#8CE026] shadow-sm' : 'text-[#94A3B8] hover:text-white'
+            }`}
+          >
+            Barberos ({barberList.length})
           </button>
           <button
             onClick={() => setActiveTab('services')}
@@ -184,49 +231,87 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* ===================== TAB 1: HORARIOS Y NEGOCIO ===================== */}
         {activeTab === 'general' && (
           <form onSubmit={handleSaveGeneral} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-[#76C81C]" />
-                  Hora de Apertura
-                </label>
-                <input
-                  type="time"
-                  required
-                  value={openingTime}
-                  onChange={(e) => setOpeningTime(e.target.value)}
-                  className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-sm"
-                />
-              </div>
+            
+            {/* Horario Lunes a Sábado */}
+            <div className="p-3.5 bg-[#090B0E] border border-[#1F2937] rounded-2xl space-y-3">
+              <span className="text-xs font-bold text-[#8CE026] uppercase tracking-wider block">
+                Horario Lunes a Sábado (09:00 AM - 07:00 PM)
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-[#D1D5DB] mb-1">
+                    Apertura
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={openingTime}
+                    onChange={(e) => setOpeningTime(e.target.value)}
+                    className="w-full min-h-[44px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-[#76C81C]" />
-                  Hora de Cierre
-                </label>
-                <input
-                  type="time"
-                  required
-                  value={closingTime}
-                  onChange={(e) => setClosingTime(e.target.value)}
-                  className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-sm"
-                />
+                <div>
+                  <label className="block text-[11px] font-bold text-[#D1D5DB] mb-1">
+                    Cierre
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={closingTime}
+                    onChange={(e) => setClosingTime(e.target.value)}
+                    className="w-full min-h-[44px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Horario Domingo */}
+            <div className="p-3.5 bg-[#090B0E] border border-[#1F2937] rounded-2xl space-y-3">
+              <span className="text-xs font-bold text-[#F59E0B] uppercase tracking-wider block">
+                Horario Domingos (09:00 AM - 03:00 PM)
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-[#D1D5DB] mb-1">
+                    Apertura Domingo
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={sundayOpeningTime}
+                    onChange={(e) => setSundayOpeningTime(e.target.value)}
+                    className="w-full min-h-[44px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-[#D1D5DB] mb-1">
+                    Cierre Domingo
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={sundayClosingTime}
+                    onChange={(e) => setSundayClosingTime(e.target.value)}
+                    className="w-full min-h-[44px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5">
-                  Intervalo de Grilla (Minutos)
+                  Intervalo de Cita (40 min por corte)
                 </label>
                 <select
                   value={slotInterval}
                   onChange={(e) => setSlotInterval(Number(e.target.value))}
-                  className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-sm"
+                  className="w-full min-h-[44px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
                 >
-                  <option value={15}>15 minutos</option>
-                  <option value={20}>20 minutos</option>
-                  <option value={30}>30 minutos (Recomendado)</option>
+                  <option value={30}>30 minutos</option>
+                  <option value={40}>40 minutos (Recomendado oficial)</option>
                   <option value={45}>45 minutos</option>
                   <option value={60}>60 minutos (1 hora)</option>
                 </select>
@@ -235,7 +320,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div>
                 <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5 flex items-center gap-1.5">
                   <Phone className="w-4 h-4 text-[#76C81C]" />
-                  WhatsApp de Barbería (10 dígitos)
+                  WhatsApp Notificaciones
                 </label>
                 <input
                   type="tel"
@@ -244,21 +329,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   value={shopPhone}
                   onChange={(e) => setShopPhone(e.target.value)}
                   placeholder="5512345678"
-                  className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none font-mono text-sm"
+                  className="w-full min-h-[44px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none font-mono text-xs"
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5">
-                Dirección / Ubicación
+                Dirección del Local
               </label>
               <input
                 type="text"
                 value={shopAddress}
                 onChange={(e) => setShopAddress(e.target.value)}
-                placeholder="Plaza Shopping - Pasillo Central #12"
-                className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-sm"
+                placeholder="Plaza Shopping - Local #5"
+                className="w-full min-h-[44px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
               />
             </div>
 
@@ -267,18 +352,59 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className="w-full min-h-[48px] flex items-center justify-center gap-2 py-3 px-6 rounded-2xl font-bold text-black bg-[#76C81C] hover:bg-[#8CE026] active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(118,200,28,0.25)] text-sm"
             >
               <Save className="w-4 h-4" />
-              Guardar Cambios de Horario
+              Guardar Horarios y Ajustes
             </button>
           </form>
         )}
 
-        {/* ===================== TAB 2: CATÁLOGO DE SERVICIOS ===================== */}
+        {/* ===================== TAB 2: EQUIPO DE BARBEROS ===================== */}
+        {activeTab === 'barbers' && (
+          <div className="space-y-4">
+            <p className="text-xs text-[#94A3B8]">
+              Configura los nombres de los 3 barberos activos. Los clientes podrán elegir a su barbero favorito o agendar con cualquiera disponible.
+            </p>
+
+            <div className="space-y-3">
+              {barberList.map((barber, index) => (
+                <div
+                  key={barber.id}
+                  className="p-3.5 bg-[#090B0E] border border-[#1F2937] rounded-2xl flex items-center gap-3"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-[#76C81C]/20 text-[#8CE026] flex items-center justify-center font-black text-sm shrink-0 border border-[#76C81C]/30">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[10px] uppercase font-bold text-[#94A3B8] mb-1">
+                      Nombre del Barbero #{index + 1}
+                    </label>
+                    <input
+                      type="text"
+                      value={barber.name}
+                      onChange={(e) => handleBarberNameChange(barber.id, e.target.value)}
+                      className="w-full min-h-[42px] px-3 py-2 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white text-xs font-semibold outline-none"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSaveBarbers}
+              className="w-full min-h-[48px] flex items-center justify-center gap-2 py-3 px-6 rounded-2xl font-bold text-black bg-[#76C81C] hover:bg-[#8CE026] active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(118,200,28,0.25)] text-sm"
+            >
+              <UserCheck className="w-4 h-4" />
+              Guardar Nombres de Barberos
+            </button>
+          </div>
+        )}
+
+        {/* ===================== TAB 3: CATÁLOGO DE SERVICIOS ===================== */}
         {activeTab === 'services' && (
           <div className="space-y-6">
-            {/* Lista actual de servicios */}
             <div className="space-y-3">
               <h4 className="text-sm font-bold text-white uppercase tracking-wider">
-                Servicios Disponibles
+                Servicios del Negocio
               </h4>
               <div className="space-y-2">
                 {services.map((srv) => (
@@ -287,7 +413,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="p-3.5 bg-[#090B0E] border border-[#1F2937] rounded-2xl flex items-center justify-between gap-3"
                   >
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-sm text-white">{srv.name}</span>
                         <span className="text-xs font-extrabold text-[#76C81C]">
                           ${srv.price} MXN
@@ -296,13 +422,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           {srv.durationMinutes} min
                         </span>
                       </div>
-                      <p className="text-xs text-[#94A3B8] mt-0.5">{srv.description}</p>
+                      {srv.description && (
+                        <p className="text-xs text-[#94A3B8] mt-0.5">{srv.description}</p>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => onUpdateService(srv.id, { isActive: !srv.isActive })}
-                        className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                        className={`min-h-[36px] px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
                           srv.isActive
                             ? 'bg-[#101E19] text-[#10B981] border-[#10B981]'
                             : 'bg-[#2A1215] text-[#EF4444] border-[#EF4444]'
@@ -313,7 +441,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                       <button
                         onClick={() => onDeleteService(srv.id)}
-                        className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-xl transition-colors"
+                        className="min-h-[36px] p-2 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-xl transition-colors"
                         title="Eliminar servicio"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -336,7 +464,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="Nombre (ej. Fade + Ceja)"
+                    placeholder="Nombre (ej. Barba Express)"
                     value={newServiceName}
                     onChange={(e) => setNewServiceName(e.target.value)}
                     className="w-full min-h-[44px] px-3 py-2 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
@@ -359,9 +487,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onChange={(e) => setNewServiceDuration(Number(e.target.value))}
                     className="w-full min-h-[44px] px-3 py-2 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
                   >
-                    <option value={15}>15 minutos</option>
+                    <option value={20}>20 minutos</option>
                     <option value={30}>30 minutos</option>
-                    <option value={45}>45 minutos</option>
+                    <option value={40}>40 minutos</option>
                     <option value={60}>60 minutos (1h)</option>
                     <option value={90}>90 minutos (1.5h)</option>
                   </select>
@@ -388,35 +516,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         )}
 
-        {/* ===================== TAB 3: RESPALDOS Y DATOS ===================== */}
+        {/* ===================== TAB 4: RESPALDOS Y DATOS ===================== */}
         {activeTab === 'backups' && (
           <div className="space-y-4">
             <div className="p-4 bg-[#090B0E] border border-[#1F2937] rounded-2xl">
               <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
                 <Download className="w-4 h-4 text-[#76C81C]" />
-                Exportar Datos de la Barbería
+                Exportar y Respaldar Agenda
               </h4>
               <p className="text-xs text-[#94A3B8] mb-4">
-                Descarga una copia completa de tus citas para tu contabilidad o respaldo de emergencia.
+                En caso de cualquier problema de conexión o para contabilidad física, puedes generar reportes oficiales en PDF o descargar copias offline.
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={handleExportPdf}
+                  className="min-h-[48px] flex items-center justify-center gap-2 px-3 py-3 bg-[#1A202C] hover:bg-[#262F3F] border border-[#76C81C]/40 text-[#8CE026] rounded-2xl text-xs font-bold transition-all"
+                >
+                  <FileText className="w-4 h-4 text-[#76C81C]" />
+                  Exportar PDF / Imprimir
+                </button>
+
                 <button
                   type="button"
                   onClick={handleExportCsv}
-                  className="min-h-[48px] flex items-center justify-center gap-2 px-4 py-3 bg-[#1A202C] hover:bg-[#262F3F] border border-[#1F2937] text-white rounded-2xl text-xs font-bold transition-all"
+                  className="min-h-[48px] flex items-center justify-center gap-2 px-3 py-3 bg-[#1A202C] hover:bg-[#262F3F] border border-[#1F2937] text-white rounded-2xl text-xs font-bold transition-all"
                 >
                   <FileSpreadsheet className="w-4 h-4 text-[#10B981]" />
-                  Descargar Planilla CSV (Excel)
+                  Descargar CSV (Excel)
                 </button>
 
                 <button
                   type="button"
                   onClick={handleExportJson}
-                  className="min-h-[48px] flex items-center justify-center gap-2 px-4 py-3 bg-[#1A202C] hover:bg-[#262F3F] border border-[#1F2937] text-white rounded-2xl text-xs font-bold transition-all"
+                  className="min-h-[48px] flex items-center justify-center gap-2 px-3 py-3 bg-[#1A202C] hover:bg-[#262F3F] border border-[#1F2937] text-white rounded-2xl text-xs font-bold transition-all"
                 >
                   <FileJson className="w-4 h-4 text-[#8CE026]" />
-                  Descargar Copia JSON Completa
+                  Copia JSON Completa
                 </button>
               </div>
             </div>
@@ -427,12 +564,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 Restaurar o Importar Respaldo JSON
               </h4>
               <p className="text-xs text-[#94A3B8] mb-3">
-                Selecciona un archivo JSON generado previamente para restaurar citas.
+                Restaura todas las citas a partir de un archivo JSON descargado previamente.
               </p>
 
               <label className="min-h-[48px] cursor-pointer flex items-center justify-center gap-2 px-4 py-3 bg-[#12161D] hover:bg-[#1A202C] border border-dashed border-[#76C81C]/50 text-[#8CE026] rounded-2xl text-xs font-bold transition-all">
                 <Upload className="w-4 h-4" />
-                <span>Seleccionar Archivo JSON</span>
+                <span>Seleccionar Archivo JSON de Respaldo</span>
                 <input
                   type="file"
                   accept=".json"

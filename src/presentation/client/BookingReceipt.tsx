@@ -125,6 +125,16 @@ export const BookingReceipt: React.FC<BookingReceiptProps> = ({
           <div className="flex items-center justify-between text-sm">
             <span className="text-[#94A3B8] flex items-center gap-2">
               <Scissors className="w-4 h-4 text-[#76C81C]" />
+              Barbero Asignado
+            </span>
+            <span className="font-extrabold text-[#76C81C]">
+              {appointment.barberName || 'Barbero 1'}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[#94A3B8] flex items-center gap-2">
+              <Scissors className="w-4 h-4 text-[#76C81C]" />
               Servicio
             </span>
             <span className="font-semibold text-white text-right">

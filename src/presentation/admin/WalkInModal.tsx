@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, UserPlus, Ban, Clock, Scissors, Calendar, ShieldAlert } from 'lucide-react';
-import { PublicSlot, ServiceItem } from '../../domain/models';
-import { minutesToTime12h, timeToMinutes } from '../../domain/scheduleEngine';
+import { X, UserPlus, Ban, Clock, Scissors, Calendar, Users } from 'lucide-react';
+import { PublicSlot, ServiceItem, Barber, DEFAULT_BARBERS } from '../../domain/models';
+import { minutesToTime12h, getScheduleHoursForDate } from '../../domain/scheduleEngine';
 import { useToast } from '../shared/ToastProvider';
 
 interface WalkInModalProps {
@@ -9,15 +9,17 @@ interface WalkInModalProps {
   onClose: () => void;
   selectedDate: string;
   services: ServiceItem[];
+  barbers: Barber[];
   preselectedSlot?: PublicSlot | null;
   onCreateWalkIn: (params: {
     clientName: string;
     clientPhone: string;
     service: ServiceItem;
+    barber: Barber;
     startMinutes: number;
     notes?: string;
   }) => Promise<{ success: boolean; error?: string }>;
-  onBlockSlot: (startMinutes: number, durationMinutes: number, reason?: string) => Promise<void>;
+  onBlockSlot: (startMinutes: number, durationMinutes: number, barberId?: string, reason?: string) => Promise<void>;
 }
 
 export const WalkInModal: React.FC<WalkInModalProps> = ({
@@ -25,6 +27,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
   onClose,
   selectedDate,
   services,
+  barbers,
   preselectedSlot,
   onCreateWalkIn,
   onBlockSlot
@@ -32,22 +35,29 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
   const { showToast } = useToast();
   const [mode, setMode] = useState<'walkin' | 'block'>('walkin');
 
+  const activeBarbers = (barbers && barbers.length > 0 ? barbers : DEFAULT_BARBERS).filter((b) => b.isActive);
+
   // WalkIn State
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [selectedServiceId, setSelectedServiceId] = useState<string>(services[0]?.id || '');
+  const [selectedBarberId, setSelectedBarberId] = useState<string>(activeBarbers[0]?.id || 'barber-1');
   const [startMinutes, setStartMinutes] = useState<number>(
-    preselectedSlot ? preselectedSlot.startMinutes : 600
+    preselectedSlot ? preselectedSlot.startMinutes : 540 // 09:00 AM
   );
   const [notes, setNotes] = useState('');
 
   // Block State
-  const [blockDuration, setBlockDuration] = useState<number>(30);
+  const [blockDuration, setBlockDuration] = useState<number>(40);
+  const [blockBarberId, setBlockBarberId] = useState<string>('all');
   const [blockReason, setBlockReason] = useState<string>('Comida / Descanso');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
+
+  // Generar lista de horarios desde las 09:00 hasta las 19:00 en intervalos de 40 min
+  const timeOptions = Array.from({ length: 16 }, (_, i) => 540 + i * 40).filter((mins) => mins < 1140);
 
   const handleWalkInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,23 +67,21 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
     }
 
     const service = services.find((s) => s.id === selectedServiceId) || services[0];
-    if (!service) {
-      showToast('Selecciona un servicio válido.', 'error');
-      return;
-    }
+    const barber = activeBarbers.find((b) => b.id === selectedBarberId) || activeBarbers[0];
 
     setIsSubmitting(true);
     const res = await onCreateWalkIn({
       clientName,
       clientPhone: clientPhone.trim() || '0000000000',
       service,
+      barber,
       startMinutes,
       notes
     });
     setIsSubmitting(false);
 
     if (res.success) {
-      showToast('Cita manual registrada.', 'success');
+      showToast('Cita manual registrada en el tablero.', 'success');
       onClose();
     } else {
       showToast(res.error || 'Error al agendar cita manual.', 'error');
@@ -83,7 +91,8 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
   const handleBlockSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    await onBlockSlot(startMinutes, blockDuration, blockReason);
+    const targetBarber = blockBarberId === 'all' ? undefined : blockBarberId;
+    await onBlockSlot(startMinutes, blockDuration, targetBarber, blockReason);
     setIsSubmitting(false);
     showToast('Horario bloqueado exitosamente.', 'success');
     onClose();
@@ -91,12 +100,12 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-[#12161D] border border-[#1F2937] rounded-3xl p-6 sm:p-8 shadow-2xl">
+      <div className="relative w-full max-w-lg bg-[#12161D] border border-[#1F2937] rounded-3xl p-5 sm:p-7 shadow-2xl max-h-[90vh] overflow-y-auto">
         
         {/* Cerrar */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-xl text-gray-400 hover:text-white hover:bg-[#1A202C] transition-colors"
+          className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2 rounded-xl text-gray-400 hover:text-white hover:bg-[#1A202C] transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
@@ -133,7 +142,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
         {/* ======================= MODO WALKIN ======================= */}
         {mode === 'walkin' && (
           <form onSubmit={handleWalkInSubmit} className="space-y-4">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2 font-['Space_Grotesk']">
               <UserPlus className="w-5 h-5 text-[#76C81C]" />
               Nueva Cita de Barbero
             </h3>
@@ -145,7 +154,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
               <input
                 type="text"
                 required
-                placeholder="Ej. Roberto Martínez (Llegó al local)"
+                placeholder="Ej. Roberto Martínez"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
                 className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-sm placeholder-[#64748B]"
@@ -154,30 +163,34 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5">
-                  Teléfono / WhatsApp (Opcional)
+                <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-[#76C81C]" />
+                  Barbero Asignado
                 </label>
-                <input
-                  type="tel"
-                  maxLength={10}
-                  placeholder="5512345678"
-                  value={clientPhone}
-                  onChange={(e) => setClientPhone(e.target.value)}
-                  className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none font-mono text-sm placeholder-[#64748B]"
-                />
+                <select
+                  value={selectedBarberId}
+                  onChange={(e) => setSelectedBarberId(e.target.value)}
+                  className="w-full min-h-[48px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-xs sm:text-sm font-semibold"
+                >
+                  {activeBarbers.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      💈 {b.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5">
+                <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-[#76C81C]" />
                   Hora de Inicio
                 </label>
                 <select
                   value={startMinutes}
                   onChange={(e) => setStartMinutes(Number(e.target.value))}
-                  className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-sm"
+                  className="w-full min-h-[48px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-xs sm:text-sm"
                 >
-                  {/* Horas desde las 10:00 hasta las 21:00 */}
-                  {Array.from({ length: 24 }, (_, i) => 600 + i * 30).map((mins) => (
+                  {timeOptions.map((mins) => (
                     <option key={mins} value={mins}>
                       {minutesToTime12h(mins)}
                     </option>
@@ -187,13 +200,14 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5">
+              <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5 flex items-center gap-1.5">
+                <Scissors className="w-3.5 h-3.5 text-[#76C81C]" />
                 Servicio
               </label>
               <select
                 value={selectedServiceId}
                 onChange={(e) => setSelectedServiceId(e.target.value)}
-                className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-sm"
+                className="w-full min-h-[48px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-xs sm:text-sm"
               >
                 {services.map((srv) => (
                   <option key={srv.id} value={srv.id}>
@@ -205,11 +219,25 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5">
-                Notas / Especificaciones
+                Teléfono / WhatsApp (Opcional)
+              </label>
+              <input
+                type="tel"
+                maxLength={10}
+                placeholder="5512345678"
+                value={clientPhone}
+                onChange={(e) => setClientPhone(e.target.value.replace(/\D/g, ''))}
+                className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none font-mono text-sm placeholder-[#64748B]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5">
+                Notas / Especificaciones (Opcional)
               </label>
               <input
                 type="text"
-                placeholder="Ej. Pagó anticipado / Quiere peinado con cera mate"
+                placeholder="Ej. Pagó en efectivo / Viene por recomendación"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-sm placeholder-[#64748B]"
@@ -229,27 +257,25 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
         {/* ======================= MODO BLOQUEO ======================= */}
         {mode === 'block' && (
           <form onSubmit={handleBlockSubmit} className="space-y-4">
-            <h3 className="text-lg font-bold text-[#EF4444] flex items-center gap-2">
+            <h3 className="text-lg font-bold text-[#EF4444] flex items-center gap-2 font-['Space_Grotesk']">
               <Ban className="w-5 h-5" />
               Bloquear Horario de Atención
             </h3>
-            <p className="text-xs text-[#94A3B8]">
-              Los clientes verán este bloque como no disponible en la vista pública.
-            </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5">
-                  Hora de Inicio
+                  ¿A quién bloquear?
                 </label>
                 <select
-                  value={startMinutes}
-                  onChange={(e) => setStartMinutes(Number(e.target.value))}
-                  className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#EF4444] rounded-2xl text-white outline-none text-sm"
+                  value={blockBarberId}
+                  onChange={(e) => setBlockBarberId(e.target.value)}
+                  className="w-full min-h-[48px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#EF4444] rounded-2xl text-white outline-none text-xs"
                 >
-                  {Array.from({ length: 24 }, (_, i) => 600 + i * 30).map((mins) => (
-                    <option key={mins} value={mins}>
-                      {minutesToTime12h(mins)}
+                  <option value="all">A todos los barberos</option>
+                  {activeBarbers.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      Solo a {b.name}
                     </option>
                   ))}
                 </select>
@@ -257,33 +283,49 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5">
-                  Duración del Bloqueo
+                  Hora de Inicio
                 </label>
                 <select
-                  value={blockDuration}
-                  onChange={(e) => setBlockDuration(Number(e.target.value))}
-                  className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#EF4444] rounded-2xl text-white outline-none text-sm"
+                  value={startMinutes}
+                  onChange={(e) => setStartMinutes(Number(e.target.value))}
+                  className="w-full min-h-[48px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#EF4444] rounded-2xl text-white outline-none text-xs"
                 >
-                  <option value={30}>30 minutos</option>
-                  <option value={60}>1 hora (60 min)</option>
-                  <option value={90}>1 hora 30 min (90 min)</option>
-                  <option value={120}>2 horas (120 min)</option>
-                  <option value={240}>4 horas (Medio turno)</option>
-                  <option value={660}>Día completo</option>
+                  {timeOptions.map((mins) => (
+                    <option key={mins} value={mins}>
+                      {minutesToTime12h(mins)}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5">
-                Motivo del Bloqueo (Privado para el barbero)
+                Duración del Bloqueo
+              </label>
+              <select
+                value={blockDuration}
+                onChange={(e) => setBlockDuration(Number(e.target.value))}
+                className="w-full min-h-[48px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#EF4444] rounded-2xl text-white outline-none text-sm"
+              >
+                <option value={40}>40 minutos (1 turno)</option>
+                <option value={80}>1 hora 20 min (2 turnos)</option>
+                <option value={120}>2 horas (Comida)</option>
+                <option value={240}>4 horas (Medio turno)</option>
+                <option value={600}>Día completo</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase text-[#D1D5DB] mb-1.5">
+                Motivo del Bloqueo
               </label>
               <input
                 type="text"
                 required
                 value={blockReason}
                 onChange={(e) => setBlockReason(e.target.value)}
-                placeholder="Ej. Hora de Comida, Mantenimiento, Trámite personal"
+                placeholder="Ej. Hora de Comida, Trámite personal"
                 className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#EF4444] rounded-2xl text-white outline-none text-sm"
               />
             </div>

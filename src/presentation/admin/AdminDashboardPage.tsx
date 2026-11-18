@@ -16,7 +16,9 @@ import {
   ChevronRight,
   Flame,
   HelpCircle,
-  X
+  X,
+  FileText,
+  Scissors
 } from 'lucide-react';
 import { useBarberAuth } from '../../application/useBarberAuth';
 import { useShopSettings } from '../../application/useShopSettings';
@@ -29,6 +31,7 @@ import {
   minutesToTime12h,
   parseCanonicalDate
 } from '../../domain/scheduleEngine';
+import { exportAppointmentsToPdf } from '../../infrastructure/backupService';
 import { addDays, subDays } from 'date-fns';
 import { Header } from '../shared/Header';
 import { BarberSlotGrid } from './BarberSlotGrid';
@@ -41,12 +44,15 @@ export const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { isAuthenticated, userEmail, logout, isFirebaseConfigured } = useBarberAuth();
-  const { config, services, updateConfig, addService, updateService, deleteService } = useShopSettings();
+  const { config, services, updateConfig, addService, updateService, deleteService, updateBarbers } = useShopSettings();
 
   const {
     selectedDate,
     setSelectedDate,
+    selectedBarberFilter,
+    setSelectedBarberFilter,
     appointments,
+    allAppointments,
     blockedSlots,
     slots,
     stats,
@@ -71,7 +77,7 @@ export const AdminDashboardPage: React.FC = () => {
   // Estado para Reprogramación de Cita
   const [reschedulingApp, setReschedulingApp] = useState<Appointment | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState(selectedDate);
-  const [rescheduleStartMins, setRescheduleStartMins] = useState(600);
+  const [rescheduleStartMins, setRescheduleStartMins] = useState(540);
 
   // Redirección si no está autenticado
   if (!isAuthenticated) {
@@ -121,6 +127,11 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
+  const handleExportPdf = () => {
+    exportAppointmentsToPdf(allAppointments, `Agenda ${selectedDate}`);
+    showToast('Generando reporte para imprimir / guardar en PDF...', 'info');
+  };
+
   return (
     <div className="min-h-screen bg-[#090B0E] flex flex-col font-['Plus_Jakarta_Sans']">
       
@@ -160,11 +171,11 @@ export const AdminDashboardPage: React.FC = () => {
             <h2 className="text-2xl sm:text-3xl font-extrabold text-[#F8FAFC] font-['Space_Grotesk'] tracking-tight flex items-center gap-2">
               Tablero del Barbero
               <span className="text-xs px-2.5 py-1 rounded-full bg-[#76C81C]/15 border border-[#76C81C]/40 text-[#8CE026] font-mono">
-                EN VIVO
+                3 BARBEROS EN VIVO
               </span>
             </h2>
             <p className="text-xs text-[#94A3B8] mt-0.5">
-              Administración de citas, ingresos del día y turnos en tiempo real.
+              Gestión simultánea de citas, sillas de atención e ingresos en tiempo real.
             </p>
           </div>
 
@@ -181,6 +192,15 @@ export const AdminDashboardPage: React.FC = () => {
             </button>
 
             <button
+              onClick={handleExportPdf}
+              className="min-h-[44px] flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-[#12161D] hover:bg-[#1A202C] border border-[#1F2937] text-[#D1D5DB] hover:text-white text-xs font-semibold transition-all"
+              title="Exportar PDF o imprimir agenda oficial"
+            >
+              <FileText className="w-4 h-4 text-[#76C81C]" />
+              <span className="hidden sm:inline">Exportar PDF</span>
+            </button>
+
+            <button
               onClick={() => setIsQrOpen(true)}
               className="min-h-[44px] flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-[#12161D] hover:bg-[#1A202C] border border-[#1F2937] text-[#D1D5DB] hover:text-white text-xs font-semibold transition-all"
               title="Descargar QR oficial"
@@ -192,12 +212,47 @@ export const AdminDashboardPage: React.FC = () => {
             <button
               onClick={() => setIsSettingsOpen(true)}
               className="min-h-[44px] flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-[#12161D] hover:bg-[#1A202C] border border-[#1F2937] text-[#D1D5DB] hover:text-white text-xs font-semibold transition-all"
-              title="Ajustes de horarios y servicios"
+              title="Ajustes de horarios, barberos y servicios"
             >
               <SettingsIcon className="w-4 h-4 text-[#76C81C]" />
               <span className="hidden sm:inline">Ajustes</span>
             </button>
           </div>
+        </div>
+
+        {/* ================= FILTRO POR BARBERO ================= */}
+        <div className="p-3 bg-[#12161D] border border-[#1F2937] rounded-2xl flex items-center gap-2 overflow-x-auto scrollbar-none">
+          <span className="text-xs font-bold text-[#94A3B8] uppercase tracking-wider shrink-0 flex items-center gap-1.5 mr-1">
+            <Scissors className="w-3.5 h-3.5 text-[#76C81C]" />
+            Ver Agenda:
+          </span>
+          <button
+            onClick={() => setSelectedBarberFilter('all')}
+            className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all ${
+              selectedBarberFilter === 'all'
+                ? 'bg-[#76C81C] text-black shadow-[0_0_12px_rgba(118,200,28,0.3)]'
+                : 'bg-[#1A202C] text-[#D1D5DB] hover:text-white border border-[#1F2937]'
+            }`}
+          >
+            Todos los Barberos (3)
+          </button>
+          {(config.barbers || []).map((barber) => {
+            const isSelected = selectedBarberFilter === barber.id;
+            return (
+              <button
+                key={barber.id}
+                onClick={() => setSelectedBarberFilter(barber.id)}
+                className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-[#8CE026] text-black shadow-[0_0_12px_rgba(118,200,28,0.3)]'
+                    : 'bg-[#1A202C] text-[#D1D5DB] hover:text-white border border-[#1F2937]'
+                }`}
+              >
+                <span>💈</span>
+                <span>{barber.name}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* ================= TARJETAS DE ESTADÍSTICAS DEL DÍA ================= */}
@@ -255,6 +310,32 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
           </div>
 
+        </div>
+
+        {/* Desglose individual de cada Barbero */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {(config.barbers || []).map((b) => {
+            const bStats = stats.perBarber?.[b.id] || { name: b.name, completedCount: 0, revenue: 0 };
+            return (
+              <div
+                key={b.id}
+                className="p-3.5 bg-[#12161D] border border-[#1F2937] rounded-2xl flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-3 h-3 rounded-full bg-[#76C81C]" />
+                  <div>
+                    <h5 className="text-xs font-extrabold text-white">💈 {b.name}</h5>
+                    <span className="text-[11px] text-[#94A3B8]">
+                      {bStats.completedCount} {bStats.completedCount === 1 ? 'corte completado' : 'cortes completados'}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-black text-[#10B981]">${bStats.revenue} MXN</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* ================= SELECTOR DE FECHA RESPONSIVO ================= */}
@@ -319,6 +400,7 @@ export const AdminDashboardPage: React.FC = () => {
         onClose={() => setIsWalkInOpen(false)}
         selectedDate={selectedDate}
         services={services}
+        barbers={config.barbers}
         preselectedSlot={preselectedSlot}
         onCreateWalkIn={createWalkIn}
         onBlockSlot={blockSlot}
@@ -338,6 +420,7 @@ export const AdminDashboardPage: React.FC = () => {
         onAddService={addService}
         onUpdateService={updateService}
         onDeleteService={deleteService}
+        onUpdateBarbers={updateBarbers}
       />
 
       {/* MODAL REPROGRAMACIÓN */}
@@ -355,7 +438,7 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
 
             <p className="text-xs text-[#94A3B8]">
-              Cliente: <strong className="text-white">{reschedulingApp.clientName}</strong> ({reschedulingApp.serviceName})
+              Cliente: <strong className="text-white">{reschedulingApp.clientName}</strong> ({reschedulingApp.serviceName}) • Barbero: <strong className="text-[#8CE026]">{reschedulingApp.barberName}</strong>
             </p>
 
             <div>
@@ -379,7 +462,7 @@ export const AdminDashboardPage: React.FC = () => {
                 onChange={(e) => setRescheduleStartMins(Number(e.target.value))}
                 className="w-full min-h-[44px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
               >
-                {Array.from({ length: 24 }, (_, i) => 600 + i * 30).map((mins) => (
+                {Array.from({ length: 20 }, (_, i) => 540 + i * 40).map((mins) => (
                   <option key={mins} value={mins}>
                     {minutesToTime12h(mins)}
                   </option>
@@ -391,14 +474,14 @@ export const AdminDashboardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setReschedulingApp(null)}
-                className="flex-1 py-2.5 rounded-xl bg-[#1A202C] text-[#D1D5DB] text-xs font-bold"
+                className="flex-1 min-h-[44px] py-2.5 rounded-xl bg-[#1A202C] text-[#D1D5DB] text-xs font-bold"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleConfirmReschedule}
-                className="flex-1 py-2.5 rounded-xl bg-[#76C81C] hover:bg-[#8CE026] text-black text-xs font-bold transition-all"
+                className="flex-1 min-h-[44px] py-2.5 rounded-xl bg-[#76C81C] hover:bg-[#8CE026] text-black text-xs font-bold transition-all"
               >
                 Mover Cita
               </button>

@@ -10,7 +10,8 @@ import {
   AlertTriangle,
   ChevronRight,
   Sparkles,
-  Info
+  Info,
+  Users
 } from 'lucide-react';
 import { useShopSettings } from '../../application/useShopSettings';
 import { useClientBooking } from '../../application/useRealtimeSchedule';
@@ -58,6 +59,8 @@ export const ClientBookingPage: React.FC = () => {
     setSelectedDate,
     selectedService,
     setSelectedService,
+    selectedBarberId,
+    setSelectedBarberId,
     slots,
     isLoading: isLoadingSlots,
     confirmBooking
@@ -325,10 +328,48 @@ export const ClientBookingPage: React.FC = () => {
               })}
             </div>
 
-            {/* Fecha formateada */}
-            <div className="p-3 bg-[#12161D] border border-[#1F2937] rounded-2xl flex items-center justify-between text-sm">
-              <span className="text-[#94A3B8]">Día seleccionado:</span>
+            {/* Fecha formateada y horario del día */}
+            <div className="p-3 bg-[#12161D] border border-[#1F2937] rounded-2xl flex items-center justify-between text-xs sm:text-sm">
+              <span className="text-[#94A3B8]">Día:</span>
               <span className="font-bold text-white">{formatFriendlyDate(selectedDate)}</span>
+            </div>
+
+            {/* Selector de Barbero */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold uppercase tracking-wider text-[#D1D5DB] flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-[#76C81C]" />
+                  ¿Con quién te gustaría cortarte?
+                </span>
+                <span className="text-[#76C81C] font-semibold text-[11px]">3 sillas en simultáneo</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedBarberId('any')}
+                  className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold border transition-all text-center ${
+                    selectedBarberId === 'any'
+                      ? 'bg-[#76C81C] text-black border-[#8CE026] shadow-sm'
+                      : 'bg-[#12161D] text-[#D1D5DB] border-[#1F2937] hover:bg-[#1A202C]'
+                  }`}
+                >
+                  ⚡ Primer libre
+                </button>
+                {(config.barbers || []).filter((b) => b.isActive).map((barber) => (
+                  <button
+                    key={barber.id}
+                    type="button"
+                    onClick={() => setSelectedBarberId(barber.id)}
+                    className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold border transition-all text-center ${
+                      selectedBarberId === barber.id
+                        ? 'bg-[#76C81C] text-black border-[#8CE026] shadow-sm'
+                        : 'bg-[#12161D] text-[#D1D5DB] border-[#1F2937] hover:bg-[#1A202C]'
+                    }`}
+                  >
+                    💈 {barber.name}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Grilla de Horarios */}
@@ -380,7 +421,9 @@ export const ClientBookingPage: React.FC = () => {
                             {minutesToTime12h(slot.startMinutes)}
                           </span>
                           <span className="text-[10px] uppercase font-bold tracking-wider mt-0.5 opacity-90">
-                            Disponible
+                            {selectedBarberId === 'any'
+                              ? `${slot.availableBarbersCount} ${slot.availableBarbersCount === 1 ? 'barbero libre' : 'barberos libres'}`
+                              : 'Disponible'}
                           </span>
                         </button>
                       );
@@ -466,6 +509,14 @@ export const ClientBookingPage: React.FC = () => {
                 <p className="text-base font-bold text-white">{selectedService.name}</p>
                 <p className="text-xs text-[#8CE026] mt-0.5">
                   {formatFriendlyDate(selectedDate)} a las {minutesToTime12h(selectedSlot.startMinutes)}
+                </p>
+                <p className="text-xs text-[#94A3B8] mt-1 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-[#76C81C]" />
+                  Barbero: <span className="text-white font-semibold">
+                    {selectedBarberId === 'any'
+                      ? `${selectedSlot.freeBarbers[0]?.name || 'Barbero 1'} (Asignado)`
+                      : (config.barbers.find((b) => b.id === selectedBarberId)?.name || 'Barbero')}
+                  </span>
                 </p>
               </div>
               <div className="text-right">

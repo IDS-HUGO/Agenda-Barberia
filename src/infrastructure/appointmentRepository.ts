@@ -9,19 +9,18 @@ import {
   runTransaction,
   updateDoc,
   deleteDoc,
-  setDoc,
-  getDoc
+  setDoc
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 import {
   Appointment,
   AppointmentStatus,
   BlockedSlot,
-  PublicSlot,
   ServiceItem,
   ShopConfig,
   DEFAULT_SERVICES,
-  DEFAULT_SHOP_CONFIG
+  DEFAULT_SHOP_CONFIG,
+  DEFAULT_BARBERS
 } from '../domain/models';
 import { minutesToTime } from '../domain/scheduleEngine';
 
@@ -35,10 +34,10 @@ export class LocalBarberDB extends Dexie {
   settings!: Table<{ key: string; value: any }, string>;
 
   constructor() {
-    super('BarberShoppingDB');
+    super('BarberShoppingDB_v2');
     this.version(1).stores({
-      appointments: 'id, folio, date, startMinutes, endMinutes, status, clientPhone',
-      blockedSlots: 'id, date, startMinutes, endMinutes',
+      appointments: 'id, folio, date, barberId, startMinutes, endMinutes, status, clientPhone',
+      blockedSlots: 'id, date, barberId, startMinutes, endMinutes',
       services: 'id, name, isActive',
       settings: 'key'
     });
@@ -49,7 +48,7 @@ export const localDB = new LocalBarberDB();
 
 // Canal de difusión en tiempo real entre pestañas para modo local
 const syncChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window
-  ? new BroadcastChannel('barber_sync_stream')
+  ? new BroadcastChannel('barber_sync_stream_v2')
   : null;
 
 function notifyLocalChange(date?: string) {
@@ -58,16 +57,20 @@ function notifyLocalChange(date?: string) {
   }
 }
 
-// Inicializar catálogo y configuración por defecto en localDB si está vacío
+// Inicializar catálogo y configuración por defecto en localDB
 export async function seedLocalDatabaseIfNeeded(): Promise<void> {
-  const serviceCount = await localDB.services.count();
-  if (serviceCount === 0) {
-    await localDB.services.bulkAdd(DEFAULT_SERVICES);
-  }
+  try {
+    const serviceCount = await localDB.services.count();
+    if (serviceCount === 0) {
+      await localDB.services.bulkAdd(DEFAULT_SERVICES);
+    }
 
-  const shopConfigDoc = await localDB.settings.get('shop_config');
-  if (!shopConfigDoc) {
-    await localDB.settings.put({ key: 'shop_config', value: DEFAULT_SHOP_CONFIG });
+    const shopConfigDoc = await localDB.settings.get('shop_config');
+    if (!shopConfigDoc) {
+      await localDB.settings.put({ key: 'shop_config', value: DEFAULT_SHOP_CONFIG });
+    }
+  } catch (err) {
+    console.warn('[DB] Error inicializando seed local:', err);
   }
 }
 
@@ -96,7 +99,6 @@ export const AppointmentRepository = {
           snapshot.forEach((docSnap) => {
             list.push({ id: docSnap.id, ...docSnap.data() } as Appointment);
           });
-          // Ordenar por hora de inicio ascendente
           list.sort((a, b) => a.startMinutes - b.startMinutes);
           callback(list);
         },
@@ -106,7 +108,7 @@ export const AppointmentRepository = {
       );
     }
 
-    // Modo Local (IndexedDB con polling reactivo + BroadcastChannel)
+    // Modo Local
     let isSubscribed = true;
 
     const fetchLocal = async () => {
@@ -136,7 +138,6 @@ export const AppointmentRepository = {
       syncChannel.addEventListener('message', handleMessage);
     }
 
-    // Intervalo de seguridad para modo local
     const interval = setInterval(fetchLocal, 1500);
 
     return () => {
@@ -150,11 +151,11 @@ export const AppointmentRepository = {
 
   /**
    * Suscripción en tiempo real a los slots públicos para la vista del cliente.
-   * CERO LEAK DE DATOS: Solo retorna startMinutes, endMinutes y status ocupado.
+   * CERO LEAK DE DATOS: Retorna startMinutes, endMinutes y barberId para saber cuál barbero está ocupado.
    */
   subscribeToPublicOccupiedSlots(
     date: string,
-    callback: (occupied: { startMinutes: number; endMinutes: number }[]) => void
+    callback: (occupied: { startMinutes: number; endMinutes: number; barberId: string }[]) => void
   ): () => void {
     if (isFirebaseConfigured && db) {
       const q = query(
@@ -163,35 +164,47 @@ export const AppointmentRepository = {
         where('status', '==', 'occupied')
       );
 
-      return onSnapshot(q, (snapshot) => {
-        const occupiedList: { startMinutes: number; endMinutes: number }[] = [];
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          occupiedList.push({
-            startMinutes: data.startMinutes,
-            endMinutes: data.endMinutes
+      return onSnapshot(
+        q,
+        (snapshot) => {
+          const occupiedList: { startMinutes: number; endMinutes: number; barberId: string }[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            occupiedList.push({
+              startMinutes: data.startMinutes,
+              endMinutes: data.endMinutes,
+              barberId: data.barberId || 'barber-1'
+            });
           });
-        });
-        callback(occupiedList);
-      });
+          callback(occupiedList);
+        },
+        (error) => {
+          console.error('[Repo] Error en public_slots:', error);
+        }
+      );
     }
 
     // Modo Local
     let isSubscribed = true;
     const fetchLocalSlots = async () => {
-      const apps = await localDB.appointments
-        .where('date')
-        .equals(date)
-        .filter((app) => app.status !== 'cancelled')
-        .toArray();
+      try {
+        const apps = await localDB.appointments
+          .where('date')
+          .equals(date)
+          .filter((app) => app.status !== 'cancelled')
+          .toArray();
 
-      if (isSubscribed) {
-        callback(
-          apps.map((a) => ({
-            startMinutes: a.startMinutes,
-            endMinutes: a.endMinutes
-          }))
-        );
+        if (isSubscribed) {
+          callback(
+            apps.map((a) => ({
+              startMinutes: a.startMinutes,
+              endMinutes: a.endMinutes,
+              barberId: a.barberId || 'barber-1'
+            }))
+          );
+        }
+      } catch (err) {
+        console.warn('Error en fetchLocalSlots:', err);
       }
     };
 
@@ -219,7 +232,7 @@ export const AppointmentRepository = {
   },
 
   /**
-   * Suscripción a horarios bloqueados por el barbero
+   * Suscripción a horarios bloqueados por los barberos
    */
   subscribeToBlockedSlots(
     date: string,
@@ -231,24 +244,34 @@ export const AppointmentRepository = {
         where('date', '==', date)
       );
 
-      return onSnapshot(q, (snapshot) => {
-        const blocks: BlockedSlot[] = [];
-        snapshot.forEach((docSnap) => {
-          blocks.push({ id: docSnap.id, ...docSnap.data() } as BlockedSlot);
-        });
-        callback(blocks);
-      });
+      return onSnapshot(
+        q,
+        (snapshot) => {
+          const blocks: BlockedSlot[] = [];
+          snapshot.forEach((docSnap) => {
+            blocks.push({ id: docSnap.id, ...docSnap.data() } as BlockedSlot);
+          });
+          callback(blocks);
+        },
+        (error) => {
+          console.error('[Repo] Error en blocked_slots:', error);
+        }
+      );
     }
 
     // Modo Local
     let isSubscribed = true;
     const fetchBlocks = async () => {
-      const blocks = await localDB.blockedSlots
-        .where('date')
-        .equals(date)
-        .toArray();
-      if (isSubscribed) {
-        callback(blocks);
+      try {
+        const blocks = await localDB.blockedSlots
+          .where('date')
+          .equals(date)
+          .toArray();
+        if (isSubscribed) {
+          callback(blocks);
+        }
+      } catch (err) {
+        console.warn('Error en fetchBlocks:', err);
       }
     };
 
@@ -266,9 +289,8 @@ export const AppointmentRepository = {
   },
 
   /**
-   * Creación de cita con prevención atómica de doble reserva.
-   * En Firebase: Utiliza runTransaction sobre `daily_locks/{date}`.
-   * En Local: Validación atómica sobre Dexie.
+   * Creación de cita con prevención atómica de doble reserva MULTI-BARBERO.
+   * Se verifica que el barbero específico no tenga colisión.
    */
   async createAppointmentAtomic(
     newApp: Omit<Appointment, 'id'>
@@ -287,21 +309,22 @@ export const AppointmentRepository = {
 
         await runTransaction(db, async (transaction) => {
           const lockSnap = await transaction.get(lockDocRef);
-          type Range = { start: number; end: number; folio: string };
+          type Range = { start: number; end: number; barberId: string; folio: string };
           const ranges: Range[] = lockSnap.exists()
             ? (lockSnap.data().ranges || [])
             : [];
 
-          // Verificar si el horario choca con una reserva confirmada
+          // Verificar si este barbero en particular ya tiene cita a esta hora
           const collision = ranges.some(
             (r) =>
+              r.barberId === fullAppointment.barberId &&
               fullAppointment.startMinutes < r.end &&
               fullAppointment.endMinutes > r.start
           );
 
           if (collision) {
             throw new Error(
-              'Este horario acaba de ser reservado por otro cliente. Por favor elige otro horario disponible.'
+              `El barbero seleccionado acaba de ser reservado en este horario. Por favor selecciona otro barbero o horario disponible.`
             );
           }
 
@@ -309,6 +332,7 @@ export const AppointmentRepository = {
           ranges.push({
             start: fullAppointment.startMinutes,
             end: fullAppointment.endMinutes,
+            barberId: fullAppointment.barberId,
             folio: fullAppointment.folio
           });
 
@@ -318,15 +342,16 @@ export const AppointmentRepository = {
             { merge: true }
           );
 
-          // Crear la cita privada completa para el barbero
+          // Crear la cita completa
           transaction.set(appDocRef, fullAppointment);
 
-          // Crear el slot público protegido (sin datos del cliente)
+          // Crear el slot público protegido
           transaction.set(publicSlotDocRef, {
             appointmentId: id,
             date: fullAppointment.date,
             startMinutes: fullAppointment.startMinutes,
             endMinutes: fullAppointment.endMinutes,
+            barberId: fullAppointment.barberId,
             status: 'occupied'
           });
         });
@@ -343,23 +368,22 @@ export const AppointmentRepository = {
 
     // Modo Local Dexie
     try {
-      // Verificar colisión local
       const existing = await localDB.appointments
         .where('date')
         .equals(fullAppointment.date)
-        .filter((app) => app.status !== 'cancelled')
+        .filter(
+          (app) =>
+            app.status !== 'cancelled' &&
+            app.barberId === fullAppointment.barberId &&
+            fullAppointment.startMinutes < app.endMinutes &&
+            fullAppointment.endMinutes > app.startMinutes
+        )
         .toArray();
 
-      const collision = existing.some(
-        (app) =>
-          fullAppointment.startMinutes < app.endMinutes &&
-          fullAppointment.endMinutes > app.startMinutes
-      );
-
-      if (collision) {
+      if (existing.length > 0) {
         return {
           success: false,
-          error: 'Este horario acaba de ser reservado localmente.'
+          error: 'Este horario acaba de ser ocupado con ese barbero localmente.'
         };
       }
 
@@ -384,7 +408,6 @@ export const AppointmentRepository = {
       const appRef = doc(db, 'appointments', id);
       await updateDoc(appRef, { status });
 
-      // Si se cancela, liberar el slot público y el lock diario
       if (status === 'cancelled') {
         const publicSlotRef = doc(db, 'public_slots', `slot_${id}`);
         try {
@@ -405,7 +428,7 @@ export const AppointmentRepository = {
             }
           });
         } catch (err) {
-          console.warn('[Repo] Error liberando daily_locks al cancelar:', err);
+          console.warn('[Repo] Error liberando lock al cancelar:', err);
         }
       }
       return;
@@ -417,18 +440,19 @@ export const AppointmentRepository = {
   },
 
   /**
-   * Reprograma una cita a una nueva fecha y hora
+   * Reprograma una cita
    */
   async rescheduleAppointment(
     appointment: Appointment,
     newDate: string,
-    newStartMinutes: number
+    newStartMinutes: number,
+    newBarberId?: string
   ): Promise<{ success: boolean; error?: string }> {
+    const targetBarberId = newBarberId || appointment.barberId;
     const newEndMinutes = newStartMinutes + appointment.durationMinutes;
     const newStartTime = minutesToTime(newStartMinutes);
     const newEndTime = minutesToTime(newEndMinutes);
 
-    // Cancelar la anterior y crear la nueva o actualizar
     if (isFirebaseConfigured && db) {
       try {
         const oldLockRef = doc(db, 'daily_locks', appointment.date);
@@ -437,9 +461,8 @@ export const AppointmentRepository = {
         const publicSlotRef = doc(db, 'public_slots', `slot_${appointment.id}`);
 
         await runTransaction(db, async (txn) => {
-          // 1. Verificar colisión en nueva fecha
           const newLockSnap = await txn.get(newLockRef);
-          type Range = { start: number; end: number; folio: string };
+          type Range = { start: number; end: number; barberId: string; folio: string };
           const ranges: Range[] = newLockSnap.exists()
             ? (newLockSnap.data().ranges || [])
             : [];
@@ -447,15 +470,15 @@ export const AppointmentRepository = {
           const collision = ranges.some(
             (r) =>
               r.folio !== appointment.folio &&
+              r.barberId === targetBarberId &&
               newStartMinutes < r.end &&
               newEndMinutes > r.start
           );
 
           if (collision) {
-            throw new Error('El nuevo horario seleccionado no está disponible.');
+            throw new Error('El nuevo horario con ese barbero no está disponible.');
           }
 
-          // 2. Si la fecha cambió, limpiar en lock anterior
           if (appointment.date !== newDate) {
             const oldLockSnap = await txn.get(oldLockRef);
             if (oldLockSnap.exists()) {
@@ -466,31 +489,31 @@ export const AppointmentRepository = {
             }
           }
 
-          // 3. Agregar nuevo lock
           const filteredRanges = ranges.filter((r) => r.folio !== appointment.folio);
           filteredRanges.push({
             start: newStartMinutes,
             end: newEndMinutes,
+            barberId: targetBarberId,
             folio: appointment.folio
           });
           txn.set(newLockRef, { ranges: filteredRanges }, { merge: true });
 
-          // 4. Actualizar cita
           txn.update(appRef, {
             date: newDate,
             startMinutes: newStartMinutes,
             endMinutes: newEndMinutes,
             startTime: newStartTime,
             endTime: newEndTime,
+            barberId: targetBarberId,
             status: 'confirmed'
           });
 
-          // 5. Actualizar public slot
           txn.set(publicSlotRef, {
             appointmentId: appointment.id,
             date: newDate,
             startMinutes: newStartMinutes,
             endMinutes: newEndMinutes,
+            barberId: targetBarberId,
             status: 'occupied'
           });
         });
@@ -503,26 +526,13 @@ export const AppointmentRepository = {
 
     // Local
     try {
-      const existing = await localDB.appointments
-        .where('date')
-        .equals(newDate)
-        .filter((app) => app.id !== appointment.id && app.status !== 'cancelled')
-        .toArray();
-
-      const collision = existing.some(
-        (app) => newStartMinutes < app.endMinutes && newEndMinutes > app.startMinutes
-      );
-
-      if (collision) {
-        return { success: false, error: 'Horario ocupado.' };
-      }
-
       await localDB.appointments.update(appointment.id, {
         date: newDate,
         startMinutes: newStartMinutes,
         endMinutes: newEndMinutes,
         startTime: newStartTime,
         endTime: newEndTime,
+        barberId: targetBarberId,
         status: 'confirmed'
       });
 
@@ -535,7 +545,7 @@ export const AppointmentRepository = {
   },
 
   /**
-   * Bloqueo de horario específico por el barbero (ej. hora de comida)
+   * Bloqueo de horario por barbero
    */
   async addBlockedSlot(block: Omit<BlockedSlot, 'id'>): Promise<void> {
     const id = `block_${Date.now()}`;
@@ -543,11 +553,11 @@ export const AppointmentRepository = {
 
     if (isFirebaseConfigured && db) {
       await setDoc(doc(db, 'blocked_slots', id), fullBlock);
-      // Agregar a public_slots
       await setDoc(doc(db, 'public_slots', `block_${id}`), {
         date: block.date,
         startMinutes: block.startMinutes,
         endMinutes: block.endMinutes,
+        barberId: block.barberId || 'all',
         status: 'occupied'
       });
       return;
@@ -558,7 +568,7 @@ export const AppointmentRepository = {
   },
 
   /**
-   * Eliminar bloqueo de horario
+   * Eliminar bloqueo
    */
   async removeBlockedSlot(id: string, date: string): Promise<void> {
     if (isFirebaseConfigured && db) {
@@ -572,13 +582,14 @@ export const AppointmentRepository = {
   },
 
   /**
-   * Obtiene todas las citas para respaldo o métricas históricas
+   * Obtiene todas las citas para respaldo histórico
    */
   async getAllAppointments(): Promise<Appointment[]> {
     if (isFirebaseConfigured && db) {
       const snap = await getDocs(collection(db, 'appointments'));
       const list: Appointment[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as Appointment));
+      list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       return list;
     }
 
@@ -586,7 +597,7 @@ export const AppointmentRepository = {
   },
 
   /**
-   * Restaura o importa citas desde respaldo
+   * Importación de citas
    */
   async importAppointments(appointments: Appointment[]): Promise<number> {
     let count = 0;
@@ -599,6 +610,7 @@ export const AppointmentRepository = {
             date: app.date,
             startMinutes: app.startMinutes,
             endMinutes: app.endMinutes,
+            barberId: app.barberId || 'barber-1',
             status: 'occupied'
           });
         }

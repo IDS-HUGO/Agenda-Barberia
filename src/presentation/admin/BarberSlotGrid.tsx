@@ -13,9 +13,10 @@ import {
   RotateCcw,
   Sparkles,
   ExternalLink,
-  X
+  X,
+  Scissors
 } from 'lucide-react';
-import { Appointment, BlockedSlot, PublicSlot, ServiceItem } from '../../domain/models';
+import { Appointment, BlockedSlot, PublicSlot } from '../../domain/models';
 import { minutesToTime12h, formatFriendlyDate } from '../../domain/scheduleEngine';
 import { buildBarberToClientWhatsAppUrl } from '../../infrastructure/whatsappService';
 import { useToast } from '../shared/ToastProvider';
@@ -48,9 +49,10 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
 
   // Filtrar según botón
   const filteredSlots = slots.filter((slot) => {
+    const hasApps = (slot.appointments && slot.appointments.length > 0) || !!slot.appointment;
     if (filter === 'all') return true;
-    if (filter === 'occupied') return slot.status === 'occupied' || slot.status === 'blocked';
-    if (filter === 'available') return slot.status === 'available';
+    if (filter === 'occupied') return hasApps || slot.status === 'occupied' || slot.status === 'blocked';
+    if (filter === 'available') return slot.status === 'available' || (slot.availableBarbersCount ?? 0) > 0;
     return true;
   });
 
@@ -76,7 +78,7 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
         <div className="flex items-center gap-1.5 bg-[#12161D] p-1 rounded-2xl border border-[#1F2937]">
           <button
             onClick={() => setFilter('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
               filter === 'all'
                 ? 'bg-[#1A202C] text-[#8CE026] shadow-sm'
                 : 'text-[#94A3B8] hover:text-white'
@@ -86,147 +88,186 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
           </button>
           <button
             onClick={() => setFilter('occupied')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
               filter === 'occupied'
                 ? 'bg-[#1A202C] text-[#F59E0B] shadow-sm'
                 : 'text-[#94A3B8] hover:text-white'
             }`}
           >
-            Citas &amp; Bloqueos
+            Citas &amp; Ocupados
           </button>
           <button
             onClick={() => setFilter('available')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
               filter === 'available'
                 ? 'bg-[#1A202C] text-[#76C81C] shadow-sm'
                 : 'text-[#94A3B8] hover:text-white'
             }`}
           >
-            Libres
+            Con Lugares Libres
           </button>
         </div>
 
         <span className="text-xs text-[#94A3B8]">
-          Toca un horario libre para agendar Walk-in o bloquear
+          Toca un horario con sillas libres para agendar Walk-in
         </span>
       </div>
 
       {/* Listado de Grilla de Turnos */}
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         {filteredSlots.map((slot) => {
-          // ================= CASO 1: HORARIO OCUPADO CON CITA =================
-          if (slot.appointment) {
-            const app = slot.appointment;
-            const isCompleted = app.status === 'completed';
-            const whatsappUrl = buildBarberToClientWhatsAppUrl(app);
+          const slotApps = slot.appointments && slot.appointments.length > 0
+            ? slot.appointments
+            : (slot.appointment ? [slot.appointment] : []);
+          
+          const hasApps = slotApps.length > 0;
+          const hasFreeBarbers = (slot.availableBarbersCount ?? (slot.freeBarbers?.length ?? 0)) > 0;
 
+          // ================= CASO 1: TIENE UNA O MÁS CITAS =================
+          if (hasApps) {
             return (
               <div
                 key={slot.id}
-                className={`p-4 rounded-2xl border transition-all ${
-                  isCompleted
-                    ? 'bg-[#101E19] border-[#10B981]/40 border-l-[6px] border-l-[#10B981]'
-                    : 'bg-[#161D27] border-[#F59E0B]/30 border-l-[6px] border-l-[#F59E0B]'
-                }`}
+                className="p-3 sm:p-4 rounded-2xl bg-[#141923] border border-[#1F2937] space-y-3"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  
-                  {/* Info Horario y Cliente */}
-                  <div className="flex items-start gap-3">
-                    <div className="shrink-0 p-2.5 rounded-xl bg-[#090B0E] border border-[#1F2937] text-center min-w-[75px]">
-                      <span className="block text-xs font-bold text-white">
-                        {minutesToTime12h(app.startMinutes)}
-                      </span>
-                      <span className="text-[10px] text-[#94A3B8] font-mono">
-                        {app.durationMinutes} min
-                      </span>
+                {/* Header del Bloque de Horario */}
+                <div className="flex items-center justify-between pb-2 border-b border-[#1F2937]/70">
+                  <div className="flex items-center gap-2">
+                    <div className="px-2.5 py-1 rounded-lg bg-[#090B0E] border border-[#1F2937] font-bold text-xs text-white">
+                      {minutesToTime12h(slot.startMinutes)}
                     </div>
-
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-bold text-base text-white">{app.clientName}</h4>
-                        <span
-                          className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${
-                            app.source === 'client_web'
-                              ? 'bg-[#76C81C]/15 text-[#8CE026] border border-[#76C81C]/30'
-                              : 'bg-blue-950/40 text-blue-400 border border-blue-800/40'
-                          }`}
-                        >
-                          {app.source === 'client_web' ? 'Web Cliente' : 'Barbero / Manual'}
-                        </span>
-
-                        <span className="text-[10px] font-mono text-[#94A3B8] px-1.5 py-0.5 rounded bg-[#090B0E]">
-                          {app.folio}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-3 text-xs text-[#D1D5DB] mt-1 flex-wrap">
-                        <span className="font-semibold text-[#76C81C]">
-                          {app.serviceName} (${app.price} MXN)
-                        </span>
-
-                        {app.clientPhone && app.clientPhone !== '0000000000' && (
-                          <a
-                            href={whatsappUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[#25D366] hover:underline font-mono"
-                          >
-                            <Phone className="w-3.5 h-3.5" />
-                            {app.clientPhone}
-                            <MessageCircle className="w-3.5 h-3.5 fill-current ml-0.5" />
-                          </a>
-                        )}
-                      </div>
-
-                      {app.notes && (
-                        <p className="text-xs text-[#94A3B8] mt-1 italic">
-                          "{app.notes}"
-                        </p>
-                      )}
-                    </div>
+                    <span className="text-xs text-[#94A3B8]">
+                      {slotApps.length} {slotApps.length === 1 ? 'barbero atendiendo' : 'barberos atendiendo'}
+                    </span>
                   </div>
 
-                  {/* Acciones Rápidas del Barbero */}
-                  <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1F2937]/50 flex-wrap">
-                    {!isCompleted ? (
-                      <>
-                        <button
-                          onClick={() => onMarkCompleted(app.id)}
-                          className="min-h-[44px] px-3.5 py-2 rounded-xl bg-[#10B981] hover:bg-[#059669] text-black font-extrabold text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95"
-                          title="Marcar como atendido y cobrado"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          Cobrado
-                        </button>
+                  {hasFreeBarbers && (
+                    <button
+                      onClick={() => onOpenWalkInForSlot(slot)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#76C81C]/10 border border-[#76C81C]/30 text-[#8CE026] text-xs font-bold hover:bg-[#76C81C]/20 transition-all active:scale-95"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      <span>{slot.availableBarbersCount} silla(s) libre(s) - Walk-in</span>
+                    </button>
+                  )}
+                </div>
 
-                        <button
-                          onClick={() => onReschedule(app)}
-                          className="min-h-[44px] px-3 py-2 rounded-xl bg-[#1A202C] hover:bg-[#262F3F] text-[#D1D5DB] hover:text-white border border-[#1F2937] text-xs font-semibold flex items-center gap-1 transition-all"
-                          title="Mover a otro horario o fecha"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          Mover
-                        </button>
+                {/* Listado de Citas en este Bloque */}
+                <div className="space-y-2.5">
+                  {slotApps.map((app) => {
+                    const isCompleted = app.status === 'completed';
+                    const whatsappUrl = buildBarberToClientWhatsAppUrl(app);
 
-                        {/* Botón Claro y Responsivo para Cancelar Cita */}
-                        <button
-                          onClick={() => setAppToCancel(app)}
-                          className="min-h-[44px] px-3.5 py-2 rounded-xl bg-[#2A1215] hover:bg-red-900/40 text-red-400 hover:text-red-300 border border-red-900/40 text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95"
-                          title="Cancelar cita y liberar horario"
-                        >
-                          <XCircle className="w-4 h-4 shrink-0" />
-                          <span>Cancelar</span>
-                        </button>
-                      </>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#101E19] text-[#10B981] text-xs font-bold border border-[#10B981]/50">
-                        <CheckCircle className="w-4 h-4" />
-                        Completado (${app.price})
-                      </span>
-                    )}
-                  </div>
+                    return (
+                      <div
+                        key={app.id}
+                        className={`p-3 sm:p-3.5 rounded-xl border transition-all ${
+                          isCompleted
+                            ? 'bg-[#101E19]/80 border-[#10B981]/30 border-l-[4px] border-l-[#10B981]'
+                            : 'bg-[#18202C] border-[#F59E0B]/20 border-l-[4px] border-l-[#F59E0B]'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          
+                          {/* Info del Barbero Asignado y Cliente */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-[#8CE026]/15 text-[#8CE026] border border-[#8CE026]/30 flex items-center gap-1">
+                                <Scissors className="w-3 h-3" />
+                                {app.barberName || 'Barbero'}
+                              </span>
 
+                              <h4 className="font-bold text-sm text-white">
+                                {app.clientName}
+                              </h4>
+
+                              <span
+                                className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${
+                                  app.source === 'client_web'
+                                    ? 'bg-[#76C81C]/15 text-[#8CE026] border border-[#76C81C]/30'
+                                    : 'bg-blue-950/40 text-blue-400 border border-blue-800/40'
+                                }`}
+                              >
+                                {app.source === 'client_web' ? 'Web Cliente' : 'Manual'}
+                              </span>
+
+                              <span className="text-[10px] font-mono text-[#94A3B8] px-1.5 py-0.5 rounded bg-[#090B0E]">
+                                {app.folio}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-3 text-xs text-[#D1D5DB] flex-wrap">
+                              <span className="font-semibold text-[#76C81C]">
+                                {app.serviceName} (${app.price} MXN)
+                              </span>
+                              <span className="text-[11px] text-[#94A3B8]">
+                                {app.durationMinutes} min
+                              </span>
+
+                              {app.clientPhone && app.clientPhone !== '0000000000' && (
+                                <a
+                                  href={whatsappUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[#25D366] hover:underline font-mono"
+                                >
+                                  <Phone className="w-3.5 h-3.5" />
+                                  {app.clientPhone}
+                                  <MessageCircle className="w-3.5 h-3.5 fill-current ml-0.5" />
+                                </a>
+                              )}
+                            </div>
+
+                            {app.notes && (
+                              <p className="text-xs text-[#94A3B8] italic">
+                                "{app.notes}"
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Acciones Rápidas */}
+                          <div className="flex items-center gap-2 shrink-0 justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1F2937]/50 flex-wrap">
+                            {!isCompleted ? (
+                              <>
+                                <button
+                                  onClick={() => onMarkCompleted(app.id)}
+                                  className="min-h-[44px] px-3.5 py-2 rounded-xl bg-[#10B981] hover:bg-[#059669] text-black font-extrabold text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95"
+                                  title="Marcar como atendido y cobrado"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                  Cobrado
+                                </button>
+
+                                <button
+                                  onClick={() => onReschedule(app)}
+                                  className="min-h-[44px] px-3 py-2 rounded-xl bg-[#1A202C] hover:bg-[#262F3F] text-[#D1D5DB] hover:text-white border border-[#1F2937] text-xs font-semibold flex items-center gap-1 transition-all"
+                                  title="Mover a otro horario o fecha"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                  Mover
+                                </button>
+
+                                <button
+                                  onClick={() => setAppToCancel(app)}
+                                  className="min-h-[44px] px-3.5 py-2 rounded-xl bg-[#2A1215] hover:bg-red-900/40 text-red-400 hover:text-red-300 border border-red-900/40 text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95"
+                                  title="Cancelar cita y liberar horario"
+                                >
+                                  <XCircle className="w-4 h-4 shrink-0" />
+                                  <span>Cancelar</span>
+                                </button>
+                              </>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#101E19] text-[#10B981] text-xs font-bold border border-[#10B981]/50">
+                                <CheckCircle className="w-4 h-4" />
+                                Atendido (${app.price})
+                              </span>
+                            )}
+                          </div>
+
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -244,7 +285,7 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
                 className="p-3.5 rounded-2xl bg-[#1A1416] border border-red-900/30 flex items-center justify-between"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-[#090B0E] border border-red-900/30 text-red-400 font-bold text-xs">
+                  <div className="p-2 rounded-xl bg-[#090B0E] border border-red-900/30 text-red-400 font-bold text-xs min-w-[70px] text-center">
                     {minutesToTime12h(slot.startMinutes)}
                   </div>
                   <div>
@@ -270,7 +311,7 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
             );
           }
 
-          // ================= CASO 3: HORARIO DISPONIBLE =================
+          // ================= CASO 3: HORARIO DISPONIBLE (TODAS LAS SILLAS LIBRES) =================
           return (
             <div
               key={slot.id}
@@ -281,9 +322,14 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
                 <div className="p-2 rounded-xl bg-[#090B0E] border border-[#1F2937] text-xs font-extrabold text-[#8CE026] min-w-[70px] text-center">
                   {minutesToTime12h(slot.startMinutes)}
                 </div>
-                <span className="text-xs font-semibold text-[#94A3B8] group-hover:text-white transition-colors">
-                  Disponible para cita
-                </span>
+                <div>
+                  <span className="text-xs font-semibold text-white group-hover:text-[#8CE026] transition-colors block">
+                    Horario Disponible
+                  </span>
+                  <span className="text-[11px] text-[#94A3B8]">
+                    {slot.availableBarbersCount ?? 3} barberos libres {slot.freeBarbers ? `(${slot.freeBarbers.map(b => b.name).join(', ')})` : ''}
+                  </span>
+                </div>
               </div>
 
               <div className="flex items-center gap-1.5 text-xs text-[#76C81C] font-bold opacity-0 group-hover:opacity-100 transition-opacity">
@@ -320,8 +366,12 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
                 <span className="font-bold text-white text-sm">{appToCancel.clientName}</span>
               </div>
               <div className="flex justify-between items-center">
+                <span className="text-[#94A3B8]">Barbero:</span>
+                <span className="text-[#8CE026] font-bold">{appToCancel.barberName || 'Barbero'}</span>
+              </div>
+              <div className="flex justify-between items-center">
                 <span className="text-[#94A3B8]">Servicio:</span>
-                <span className="text-[#76C81C] font-semibold">{appToCancel.serviceName}</span>
+                <span className="text-[#76C81C] font-semibold">{appToCancel.serviceName} (${appToCancel.price} MXN)</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-[#94A3B8]">Horario:</span>
