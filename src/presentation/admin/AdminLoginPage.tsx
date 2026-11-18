@@ -45,10 +45,10 @@ export const AdminLoginPage: React.FC = () => {
       </div>
 
       {/* Tarjeta de Login */}
-      <div className="w-full max-w-md bg-[#12161D] border border-[#1F2937] rounded-3xl p-6 sm:p-8 shadow-[0_0_35px_rgba(0,0,0,0.8)] relative z-10">
+      <div className="w-full max-w-md bg-[#12161D] border border-[#1F2937] rounded-3xl p-5 sm:p-8 shadow-[0_0_35px_rgba(0,0,0,0.8)] relative z-10">
         
         {/* Logo oficial y título */}
-        <div className="text-center pb-6 border-b border-[#1F2937]">
+        <div className="text-center pb-5 sm:pb-6 border-b border-[#1F2937]">
           <div className="relative inline-block mb-3">
             <img
               src="/logo-barber.jpeg"
@@ -58,7 +58,7 @@ export const AdminLoginPage: React.FC = () => {
             <span className="absolute bottom-1 right-1 w-4 h-4 bg-[#76C81C] border-2 border-[#12161D] rounded-full animate-pulse" />
           </div>
 
-          <h2 className="text-2xl font-black text-[#F8FAFC] font-['Space_Grotesk'] tracking-wide">
+          <h2 className="text-xl sm:text-2xl font-black text-[#F8FAFC] font-['Space_Grotesk'] tracking-wide">
             BARBER <span className="text-[#76C81C]">&amp;</span> SHOPPING
           </h2>
           <p className="text-xs text-[#94A3B8] mt-1 font-medium flex items-center justify-center gap-1">
@@ -81,7 +81,7 @@ export const AdminLoginPage: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="admin@barberyshopping.com"
-              className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-sm placeholder-[#64748B] transition-colors"
+              className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-sm placeholder-[#64748B] transition-colors"
             />
           </div>
 
@@ -98,7 +98,7 @@ export const AdminLoginPage: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full min-h-[48px] px-4 py-3 pr-12 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-sm placeholder-[#64748B] transition-colors"
+                className="w-full min-h-[48px] px-4 py-3 pr-12 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-sm placeholder-[#64748B] transition-colors"
               />
               <button
                 type="button"

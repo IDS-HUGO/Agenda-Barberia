@@ -170,8 +170,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-[#12161D] border border-[#1F2937] rounded-3xl p-4 sm:p-8 max-h-[90vh] overflow-y-auto shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl bg-[#12161D] border border-[#1F2937] rounded-3xl p-4 sm:p-7 max-h-[90dvh] overflow-y-auto shadow-2xl">
         
         {/* Cerrar */}
         <button
@@ -182,9 +182,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </button>
 
         {/* Encabezado */}
-        <div className="pb-4 border-b border-[#1F2937] pr-8 sm:pr-0">
-          <h3 className="text-xl font-black text-white font-['Space_Grotesk'] flex items-center gap-2">
-            <Settings className="w-6 h-6 text-[#76C81C]" />
+        <div className="pb-3 border-b border-[#1F2937] pr-8 sm:pr-0">
+          <h3 className="text-lg sm:text-xl font-black text-white font-['Space_Grotesk'] flex items-center gap-2">
+            <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-[#76C81C]" />
             Ajustes de la Barbería
           </h3>
           <p className="text-xs text-[#94A3B8] mt-1">
@@ -192,11 +192,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </p>
         </div>
 
-        {/* Tabs */}
-        <div className="grid grid-cols-4 gap-1 sm:gap-2 bg-[#090B0E] p-1.5 rounded-2xl my-5 border border-[#1F2937]">
+        {/* Tabs Responsivos (2x2 en mobile, 4 en desktop) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 bg-[#090B0E] p-1.5 rounded-2xl my-4 sm:my-5 border border-[#1F2937]">
           <button
             onClick={() => setActiveTab('general')}
-            className={`min-h-[44px] py-2 px-1 rounded-xl text-[11px] sm:text-xs font-bold text-center transition-all ${
+            className={`min-h-[44px] py-2 px-2 rounded-xl text-xs font-bold text-center transition-all ${
               activeTab === 'general' ? 'bg-[#1A202C] text-[#8CE026] shadow-sm' : 'text-[#94A3B8] hover:text-white'
             }`}
           >
@@ -204,7 +204,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('barbers')}
-            className={`min-h-[44px] py-2 px-1 rounded-xl text-[11px] sm:text-xs font-bold text-center transition-all ${
+            className={`min-h-[44px] py-2 px-2 rounded-xl text-xs font-bold text-center transition-all ${
               activeTab === 'barbers' ? 'bg-[#1A202C] text-[#8CE026] shadow-sm' : 'text-[#94A3B8] hover:text-white'
             }`}
           >
@@ -212,7 +212,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('services')}
-            className={`min-h-[44px] py-2 px-1 rounded-xl text-[11px] sm:text-xs font-bold text-center transition-all ${
+            className={`min-h-[44px] py-2 px-2 rounded-xl text-xs font-bold text-center transition-all ${
               activeTab === 'services' ? 'bg-[#1A202C] text-[#8CE026] shadow-sm' : 'text-[#94A3B8] hover:text-white'
             }`}
           >
@@ -220,7 +220,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('backups')}
-            className={`min-h-[44px] py-2 px-1 rounded-xl text-[11px] sm:text-xs font-bold text-center transition-all ${
+            className={`min-h-[44px] py-2 px-2 rounded-xl text-xs font-bold text-center transition-all ${
               activeTab === 'backups' ? 'bg-[#1A202C] text-[#8CE026] shadow-sm' : 'text-[#94A3B8] hover:text-white'
             }`}
           >

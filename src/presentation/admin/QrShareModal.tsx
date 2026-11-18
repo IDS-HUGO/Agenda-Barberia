@@ -132,23 +132,23 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({ isOpen, onClose }) =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md bg-[#12161D] border border-[#76C81C]/40 rounded-3xl p-6 sm:p-8 shadow-[0_0_40px_rgba(118,200,28,0.2)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md bg-[#12161D] border border-[#76C81C]/40 rounded-3xl p-5 sm:p-8 max-h-[90dvh] overflow-y-auto shadow-[0_0_40px_rgba(118,200,28,0.2)]">
         
         {/* Cerrar */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-xl text-gray-400 hover:text-white hover:bg-[#1A202C] transition-colors"
+          className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2 rounded-xl text-gray-400 hover:text-white hover:bg-[#1A202C] transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Encabezado */}
-        <div className="text-center pb-4">
-          <div className="inline-flex p-3 rounded-2xl bg-[#76C81C]/10 border border-[#76C81C]/30 text-[#8CE026] mb-3">
-            <QrCode className="w-8 h-8" />
+        <div className="text-center pb-3 pr-6 sm:pr-0">
+          <div className="inline-flex p-3 rounded-2xl bg-[#76C81C]/10 border border-[#76C81C]/30 text-[#8CE026] mb-2 sm:mb-3">
+            <QrCode className="w-7 h-7 sm:w-8 sm:h-8" />
           </div>
-          <h3 className="text-xl font-extrabold text-white font-['Space_Grotesk']">
+          <h3 className="text-lg sm:text-xl font-extrabold text-white font-['Space_Grotesk']">
             Código QR Oficial de la Barbería
           </h3>
           <p className="text-xs text-[#94A3B8] mt-1">
@@ -157,29 +157,30 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({ isOpen, onClose }) =
         </div>
 
         {/* QR Preview Box con Logo Central */}
-        <div className="p-6 my-4 bg-white rounded-3xl flex items-center justify-center shadow-inner max-w-[260px] mx-auto">
+        <div className="p-4 sm:p-6 my-3 sm:my-4 bg-white rounded-3xl flex items-center justify-center shadow-inner max-w-[240px] mx-auto">
           <QRCodeSVG
             ref={qrRef}
             value={currentUrl}
-            size={220}
+            size={200}
             level="H"
+            className="w-full h-auto max-w-[200px]"
             includeMargin={false}
             imageSettings={{
               src: '/logo-barber.jpeg',
-              height: 48,
-              width: 48,
+              height: 44,
+              width: 44,
               excavate: true
             }}
           />
         </div>
 
         {/* Enlace y botón copiar */}
-        <div className="flex items-center gap-2 p-2.5 bg-[#090B0E] border border-[#1F2937] rounded-2xl mb-6">
+        <div className="flex items-center gap-2 p-2 sm:p-2.5 bg-[#090B0E] border border-[#1F2937] rounded-2xl mb-4 sm:mb-6">
           <input
             type="text"
             readOnly
             value={currentUrl}
-            className="w-full bg-transparent text-xs text-[#D1D5DB] outline-none font-mono px-2"
+            className="w-full bg-transparent text-xs text-[#D1D5DB] outline-none font-mono px-1 sm:px-2 truncate"
           />
           <button
             onClick={copyUrl}
@@ -193,10 +194,10 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({ isOpen, onClose }) =
         {/* Botón Descargar PNG */}
         <button
           onClick={downloadQrPng}
-          className="w-full min-h-[48px] flex items-center justify-center gap-2 py-3 px-6 rounded-2xl font-bold text-black bg-[#76C81C] hover:bg-[#8CE026] active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(118,200,28,0.25)] text-sm"
+          className="w-full min-h-[48px] flex items-center justify-center gap-2 py-3 px-4 sm:px-6 rounded-2xl font-bold text-black bg-[#76C81C] hover:bg-[#8CE026] active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(118,200,28,0.25)] text-xs sm:text-sm text-center"
         >
-          <Download className="w-5 h-5" />
-          Descargar Cartel QR en PNG (Listo para Imprimir)
+          <Download className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+          <span>Descargar Cartel QR (Listo para Imprimir)</span>
         </button>
 
       </div>

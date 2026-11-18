@@ -99,8 +99,8 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-[#12161D] border border-[#1F2937] rounded-3xl p-5 sm:p-7 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg bg-[#12161D] border border-[#1F2937] rounded-3xl p-4 sm:p-7 shadow-2xl max-h-[90dvh] overflow-y-auto">
         
         {/* Cerrar */}
         <button

@@ -73,12 +73,12 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
   return (
     <div className="space-y-4">
       
-      {/* Barra de Filtros */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-1.5 bg-[#12161D] p-1 rounded-2xl border border-[#1F2937]">
+      {/* Barra de Filtros Responsiva */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-1 bg-[#12161D] p-1 rounded-2xl border border-[#1F2937] overflow-x-auto max-w-full scrollbar-none">
           <button
             onClick={() => setFilter('all')}
-            className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
               filter === 'all'
                 ? 'bg-[#1A202C] text-[#8CE026] shadow-sm'
                 : 'text-[#94A3B8] hover:text-white'
@@ -88,7 +88,7 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
           </button>
           <button
             onClick={() => setFilter('occupied')}
-            className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
               filter === 'occupied'
                 ? 'bg-[#1A202C] text-[#F59E0B] shadow-sm'
                 : 'text-[#94A3B8] hover:text-white'
@@ -98,17 +98,17 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
           </button>
           <button
             onClick={() => setFilter('available')}
-            className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
               filter === 'available'
                 ? 'bg-[#1A202C] text-[#76C81C] shadow-sm'
                 : 'text-[#94A3B8] hover:text-white'
             }`}
           >
-            Con Lugares Libres
+            Lugares Libres
           </button>
         </div>
 
-        <span className="text-xs text-[#94A3B8]">
+        <span className="text-[11px] sm:text-xs text-[#94A3B8]">
           Toca un horario con sillas libres para agendar Walk-in
         </span>
       </div>

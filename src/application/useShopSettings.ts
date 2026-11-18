@@ -55,37 +55,59 @@ export function useShopSettings() {
             };
 
             if (isLegacy) {
-              setDoc(configDocRef, resolvedConfig, { merge: true });
+              setDoc(configDocRef, resolvedConfig, { merge: true }).catch((err) => {
+                console.warn('[useShopSettings] No se pudo guardar config migrada en Firestore:', err);
+              });
             }
             setConfig(resolvedConfig);
           } else {
-            setDoc(configDocRef, DEFAULT_SHOP_CONFIG);
+            setDoc(configDocRef, DEFAULT_SHOP_CONFIG).catch((err) => {
+              console.warn('[useShopSettings] No se pudo inicializar config en Firestore:', err);
+            });
             setConfig(DEFAULT_SHOP_CONFIG);
           }
+        }, (err) => {
+          console.warn('[useShopSettings] Error en snapshot de config, usando DEFAULT_SHOP_CONFIG:', err);
+          setConfig(DEFAULT_SHOP_CONFIG);
         });
 
         unsubscribeServices = onSnapshot(servicesDocRef, (snap) => {
           if (snap.exists() && snap.data().items && snap.data().items.length > 0) {
             const rawItems = snap.data().items as ServiceItem[];
-            const isLegacy = rawItems.some(
+            const isLegacy = rawItems.length !== 4 || rawItems.some(
               (it) =>
+                it.id.includes('fade') ||
+                it.id.includes('barba-vip') ||
+                it.id.includes('combo-alien') ||
+                it.id.includes('diseno-ceja') ||
                 it.name.toLowerCase().includes('alien') ||
                 it.name.toLowerCase().includes('vip') ||
                 it.name.toLowerCase().includes('gremas') ||
+                it.name.toLowerCase().includes('clásico') ||
+                it.name.toLowerCase().includes('clasico') ||
                 it.price === 150 ||
-                it.price === 120
+                it.price === 120 ||
+                it.durationMinutes === 30
             );
 
             if (isLegacy) {
-              setDoc(servicesDocRef, { items: DEFAULT_SERVICES });
               setServices(DEFAULT_SERVICES);
+              setDoc(servicesDocRef, { items: DEFAULT_SERVICES }).catch((err) => {
+                console.warn('[useShopSettings] No se pudo migrar DEFAULT_SERVICES en Firestore:', err);
+              });
             } else {
               setServices(rawItems);
             }
           } else {
-            setDoc(servicesDocRef, { items: DEFAULT_SERVICES });
             setServices(DEFAULT_SERVICES);
+            setDoc(servicesDocRef, { items: DEFAULT_SERVICES }).catch((err) => {
+              console.warn('[useShopSettings] No se pudo inicializar DEFAULT_SERVICES en Firestore:', err);
+            });
           }
+          setIsLoading(false);
+        }, (err) => {
+          console.warn('[useShopSettings] Error en snapshot de servicios, usando DEFAULT_SERVICES:', err);
+          setServices(DEFAULT_SERVICES);
           setIsLoading(false);
         });
 
@@ -110,13 +132,20 @@ export function useShopSettings() {
         });
       }
       const localServices = await localDB.services.toArray();
-      const hasLegacyLocal = localServices.some(
+      const hasLegacyLocal = localServices.length !== 4 || localServices.some(
         (it) =>
+          it.id.includes('fade') ||
+          it.id.includes('barba-vip') ||
+          it.id.includes('combo-alien') ||
+          it.id.includes('diseno-ceja') ||
           it.name.toLowerCase().includes('alien') ||
           it.name.toLowerCase().includes('vip') ||
           it.name.toLowerCase().includes('gremas') ||
+          it.name.toLowerCase().includes('clásico') ||
+          it.name.toLowerCase().includes('clasico') ||
           it.price === 150 ||
-          it.price === 120
+          it.price === 120 ||
+          it.durationMinutes === 30
       );
       if (localServices.length > 0 && !hasLegacyLocal) {
         setServices(localServices);

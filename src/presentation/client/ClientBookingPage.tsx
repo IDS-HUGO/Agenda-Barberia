@@ -260,7 +260,7 @@ export const ClientBookingPage: React.FC = () => {
                   <div
                     key={service.id}
                     onClick={() => handleSelectService(service)}
-                    className={`cursor-pointer p-5 rounded-2xl border transition-all relative flex flex-col justify-between active:scale-[0.99] ${
+                    className={`cursor-pointer p-4 sm:p-5 rounded-2xl border transition-all relative flex flex-col justify-between active:scale-[0.99] ${
                       isSelected
                         ? 'bg-[#1A202C] border-[#76C81C] shadow-[0_0_20px_rgba(118,200,28,0.2)]'
                         : 'bg-[#12161D] hover:bg-[#161D27] border-[#1F2937] hover:border-[#76C81C]/50'
@@ -268,11 +268,11 @@ export const ClientBookingPage: React.FC = () => {
                   >
                     <div>
                       <div className="flex justify-between items-start gap-2">
-                        <h4 className="font-extrabold text-lg text-white font-['Space_Grotesk']">
+                        <h4 className="font-extrabold text-base sm:text-lg text-white font-['Space_Grotesk'] leading-snug">
                           {service.name}
                         </h4>
                         <div className="text-right shrink-0">
-                          <span className="text-2xl font-black text-[#76C81C]">
+                          <span className="text-xl sm:text-2xl font-black text-[#76C81C]">
                             ${service.price}
                           </span>
                           <span className="block text-[10px] text-[#94A3B8] uppercase font-bold">MXN</span>
@@ -283,13 +283,13 @@ export const ClientBookingPage: React.FC = () => {
                       </p>
                     </div>
 
-                    <div className="mt-5 pt-3 border-t border-[#1F2937] flex items-center justify-between text-xs">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#090B0E] text-[#D1D5DB] font-semibold border border-[#1F2937]">
+                    <div className="mt-4 sm:mt-5 pt-3 border-t border-[#1F2937] flex items-center justify-between text-xs">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg bg-[#090B0E] text-[#D1D5DB] font-semibold border border-[#1F2937]">
                         <Clock className="w-3.5 h-3.5 text-[#76C81C]" />
                         {service.durationMinutes} min
                       </span>
 
-                      <span className={`inline-flex items-center gap-1 font-extrabold px-3 py-1.5 rounded-xl transition-all ${
+                      <span className={`inline-flex items-center gap-1 font-extrabold px-2.5 sm:px-3 py-1.5 rounded-xl transition-all ${
                         isSelected
                           ? 'bg-[#76C81C] text-black shadow-sm'
                           : 'text-[#8CE026] bg-[#76C81C]/10 hover:bg-[#76C81C]/20'
@@ -561,7 +561,7 @@ export const ClientBookingPage: React.FC = () => {
             </div>
 
             {/* Resumen Compacto */}
-            <div className="bg-[#12161D] border border-[#76C81C]/40 p-4 sm:p-5 rounded-2xl flex items-center justify-between shadow-[0_0_15px_rgba(118,200,28,0.1)]">
+            <div className="bg-[#12161D] border border-[#76C81C]/40 p-3.5 sm:p-5 rounded-2xl flex items-center justify-between shadow-[0_0_15px_rgba(118,200,28,0.1)] gap-3">
               <div>
                 <p className="text-xs text-[#94A3B8] uppercase font-bold tracking-wider">Cita a Reservar:</p>
                 <p className="text-lg font-extrabold text-white font-['Space_Grotesk'] mt-0.5">{selectedService.name}</p>
