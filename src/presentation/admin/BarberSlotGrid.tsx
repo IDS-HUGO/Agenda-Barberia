@@ -342,7 +342,66 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
             );
           }
 
-          // ================= CASO 3: HORARIO DISPONIBLE (TODAS LAS SILLAS LIBRES) =================
+          // ================= CASO 2.5: HORARIO OCUPADO (TODAS LAS SILLAS OCUPADAS) =================
+          if (slot.status === 'occupied') {
+            return (
+              <div
+                key={slot.id}
+                className="p-3.5 rounded-2xl bg-[#141923] border border-[#1F2937] flex items-center justify-between opacity-75"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-[#090B0E] border border-[#1F2937] text-gray-400 font-bold text-xs min-w-[70px] text-center">
+                    {minutesToTime12h(slot.startMinutes)}
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-gray-400 flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5" />
+                      Horario Ocupado / Agotado
+                    </span>
+                    <p className="text-[11px] text-[#94A3B8]">
+                      {slot.occupiedReason || 'Todos los barberos ocupados'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // ================= CASO 2.7: HORARIO PASADO / CONCLUIDO =================
+          if (slot.status === 'past') {
+            return (
+              <div
+                key={slot.id}
+                className="p-3 rounded-2xl bg-[#090B0E]/60 border border-[#1F2937]/50 flex items-center justify-between opacity-50"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-[#090B0E] border border-[#1F2937]/30 text-gray-500 font-bold text-xs min-w-[70px] text-center line-through">
+                    {minutesToTime12h(slot.startMinutes)}
+                  </div>
+                  <span className="text-xs text-gray-500 font-medium">Turno Concluido</span>
+                </div>
+              </div>
+            );
+          }
+
+          // ================= CASO 2.8: TIEMPO INSUFICIENTE ANTES DEL CIERRE =================
+          if (slot.status === 'insufficient_time') {
+            return (
+              <div
+                key={slot.id}
+                className="p-3 rounded-2xl bg-[#090B0E]/60 border border-dashed border-[#1F2937]/50 flex items-center justify-between opacity-40"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-[#090B0E] border border-[#1F2937]/30 text-gray-500 font-bold text-xs min-w-[70px] text-center line-through">
+                    {minutesToTime12h(slot.startMinutes)}
+                  </div>
+                  <span className="text-xs text-gray-500 font-medium">Sin tiempo antes del cierre</span>
+                </div>
+              </div>
+            );
+          }
+
+          // ================= CASO 3: HORARIO DISPONIBLE (CON SILLAS LIBRES) =================
           return (
             <div
               key={slot.id}

@@ -263,7 +263,16 @@ export function calculateScheduleSlots(
         appointments: slotAppointments
       });
     } else {
-      // 5. Todos los barberos están ocupados o bloqueados -> OCUPADO
+      // 5. Todos los barberos evaluados están ocupados o bloqueados
+      const matchingBlock = activeBlocks.find(
+        (b) =>
+          (!b.barberId || (filterBarberId && b.barberId === filterBarberId)) &&
+          start < b.endMinutes &&
+          requiredEnd > b.startMinutes
+      );
+
+      const isBlocked = matchingBlock !== undefined && slotAppointments.length === 0;
+
       slots.push({
         id: slotId,
         date,
@@ -271,10 +280,10 @@ export function calculateScheduleSlots(
         endMinutes: end,
         startTime: startTimeStr,
         endTime: endTimeStr,
-        status: 'occupied',
+        status: isBlocked ? 'blocked' : 'occupied',
         availableBarbersCount: 0,
         freeBarbers: [],
-        occupiedReason: 'Todos los barberos ocupados',
+        occupiedReason: matchingBlock?.reason || (slotAppointments.length > 0 ? 'Cita programada' : 'Todos los barberos ocupados'),
         appointment: slotAppointments[0],
         appointments: slotAppointments
       });

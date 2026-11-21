@@ -218,14 +218,23 @@ export const AppointmentRepository = {
           .filter((app) => app.status !== 'cancelled')
           .toArray();
 
+        const blocks = await localDB.blockedSlots
+          .where('date')
+          .equals(date)
+          .toArray();
+
         if (isSubscribed) {
-          callback(
-            apps.map((a) => ({
-              startMinutes: a.startMinutes,
-              endMinutes: a.endMinutes,
-              barberId: a.barberId || 'barber-1'
-            }))
-          );
+          const appSlots = apps.map((a) => ({
+            startMinutes: a.startMinutes,
+            endMinutes: a.endMinutes,
+            barberId: a.barberId || 'barber-1'
+          }));
+          const blockSlots = blocks.map((b) => ({
+            startMinutes: b.startMinutes,
+            endMinutes: b.endMinutes,
+            barberId: b.barberId || 'all'
+          }));
+          callback([...appSlots, ...blockSlots]);
         }
       } catch (err) {
         console.warn('Error en fetchLocalSlots:', err);
@@ -338,10 +347,10 @@ export const AppointmentRepository = {
             ? (lockSnap.data().ranges || [])
             : [];
 
-          // Verificar si este barbero en particular ya tiene cita a esta hora
+          // Verificar si este barbero en particular o toda la tienda ya está reservada/bloqueada
           const collision = ranges.some(
             (r) =>
-              r.barberId === fullAppointment.barberId &&
+              (r.barberId === 'all' || r.barberId === fullAppointment.barberId) &&
               fullAppointment.startMinutes < r.end &&
               fullAppointment.endMinutes > r.start
           );
@@ -409,6 +418,24 @@ export const AppointmentRepository = {
         return {
           success: false,
           error: 'Este horario acaba de ser ocupado con ese barbero localmente.'
+        };
+      }
+
+      const existingBlocks = await localDB.blockedSlots
+        .where('date')
+        .equals(fullAppointment.date)
+        .filter(
+          (b) =>
+            (b.barberId === 'all' || !b.barberId || b.barberId === fullAppointment.barberId) &&
+            fullAppointment.startMinutes < b.endMinutes &&
+            fullAppointment.endMinutes > b.startMinutes
+        )
+        .toArray();
+
+      if (existingBlocks.length > 0) {
+        return {
+          success: false,
+          error: 'Este horario o barbero se encuentra bloqueado por descanso localmente.'
         };
       }
 
@@ -513,7 +540,7 @@ export const AppointmentRepository = {
             (r) =>
               r.folio !== appointment.folio &&
               r.id !== appointment.id &&
-              r.barberId === targetBarberId &&
+              (r.barberId === 'all' || r.barberId === targetBarberId) &&
               newStartMinutes < r.end &&
               newEndMinutes > r.start
           );
@@ -571,6 +598,38 @@ export const AppointmentRepository = {
 
     // Local
     try {
+      const existing = await localDB.appointments
+        .where('date')
+        .equals(newDate)
+        .filter(
+          (app) =>
+            app.id !== appointment.id &&
+            app.status !== 'cancelled' &&
+            app.barberId === targetBarberId &&
+            newStartMinutes < app.endMinutes &&
+            newEndMinutes > app.startMinutes
+        )
+        .toArray();
+
+      if (existing.length > 0) {
+        return { success: false, error: 'El nuevo horario con ese barbero ya está ocupado localmente.' };
+      }
+
+      const existingBlocks = await localDB.blockedSlots
+        .where('date')
+        .equals(newDate)
+        .filter(
+          (b) =>
+            (b.barberId === 'all' || !b.barberId || b.barberId === targetBarberId) &&
+            newStartMinutes < b.endMinutes &&
+            newEndMinutes > b.startMinutes
+        )
+        .toArray();
+
+      if (existingBlocks.length > 0) {
+        return { success: false, error: 'El nuevo horario está bloqueado por descanso localmente.' };
+      }
+
       await localDB.appointments.update(appointment.id, {
         date: newDate,
         startMinutes: newStartMinutes,
@@ -606,6 +665,25 @@ export const AppointmentRepository = {
         barberId: block.barberId || 'all',
         status: 'occupied'
       });
+
+      const lockDocRef = doc(db, 'daily_locks', block.date);
+      try {
+        await runTransaction(db, async (txn) => {
+          const lockSnap = await txn.get(lockDocRef);
+          type Range = { id?: string; start: number; end: number; barberId: string; folio: string };
+          const ranges: Range[] = lockSnap.exists() ? (lockSnap.data().ranges || []) : [];
+          ranges.push({
+            id: `block_${id}`,
+            start: block.startMinutes,
+            end: block.endMinutes,
+            barberId: block.barberId || 'all',
+            folio: `BLOCK-${id}`
+          });
+          txn.set(lockDocRef, { ranges, lastUpdated: new Date().toISOString() }, { merge: true });
+        });
+      } catch (err) {
+        console.warn('[Repo] Advertencia registrando bloqueo en daily_locks:', err);
+      }
       return;
     }
 
@@ -620,6 +698,21 @@ export const AppointmentRepository = {
     if (isFirebaseConfigured && db) {
       await deleteDoc(doc(db, 'blocked_slots', id));
       await deleteDoc(doc(db, 'public_slots', `block_${id}`));
+
+      const lockDocRef = doc(db, 'daily_locks', date);
+      try {
+        await runTransaction(db, async (txn) => {
+          const lockSnap = await txn.get(lockDocRef);
+          if (lockSnap.exists()) {
+            const ranges = (lockSnap.data().ranges || []).filter(
+              (r: any) => r.id !== `block_${id}` && r.folio !== `BLOCK-${id}` && r.id !== id
+            );
+            txn.update(lockDocRef, { ranges });
+          }
+        });
+      } catch (err) {
+        console.warn('[Repo] Advertencia liberando bloqueo en daily_locks:', err);
+      }
       return;
     }
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Users, UserPlus, CheckCircle2, Moon, Scissors, Trash2, Calendar, AlertCircle } from 'lucide-react';
-import { Barber } from '../../domain/models';
+import { Barber, BlockedSlot } from '../../domain/models';
 import { useToast } from '../shared/ToastProvider';
 import { formatFriendlyDate } from '../../domain/scheduleEngine';
 
@@ -9,10 +9,12 @@ interface BarberManagerModalProps {
   onClose: () => void;
   barbers: Barber[];
   selectedDate?: string;
+  blockedSlots?: BlockedSlot[];
   onToggleActive: (barberId: string) => Promise<void>;
   onAddBarber: (name: string, color?: string) => Promise<void>;
   onDeleteBarber: (barberId: string) => Promise<void>;
   onBlockSlot?: (startMinutes: number, durationMinutes: number, barberId?: string, reason?: string) => Promise<void>;
+  onUnblockSlot?: (id: string) => Promise<void>;
 }
 
 const COLOR_PALETTE = [
@@ -29,10 +31,12 @@ export const BarberManagerModal: React.FC<BarberManagerModalProps> = ({
   onClose,
   barbers,
   selectedDate,
+  blockedSlots = [],
   onToggleActive,
   onAddBarber,
   onDeleteBarber,
-  onBlockSlot
+  onBlockSlot,
+  onUnblockSlot
 }) => {
   const { showToast } = useToast();
   const [newBarberName, setNewBarberName] = useState('');
@@ -46,6 +50,7 @@ export const BarberManagerModal: React.FC<BarberManagerModalProps> = ({
   if (!isOpen) return null;
 
   const activeBarbers = (barbers || []).filter((b) => b.isActive);
+  const activeDescansos = blockedSlots.filter((b) => !selectedDate || b.date === selectedDate);
 
   const handleToggle = async (b: Barber) => {
     // Si intenta desactivar globalmente, advertir que afecta a todas las fechas
@@ -187,6 +192,44 @@ export const BarberManagerModal: React.FC<BarberManagerModalProps> = ({
                 <span>{isBlockingDay ? 'Registrando...' : 'Marcar Descanso Solo Esta Fecha'}</span>
               </button>
             </div>
+
+            {/* Listado de descansos activos en esta fecha para poder revertir/quitar */}
+            {activeDescansos.length > 0 && (
+              <div className="pt-2.5 border-t border-[#1F2937] space-y-2">
+                <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">
+                  Descansos registrados para esta fecha ({activeDescansos.length}):
+                </span>
+                <div className="space-y-1.5">
+                  {activeDescansos.map((blk) => {
+                    const bName = barbers.find((b) => b.id === blk.barberId)?.name || 'Todos los barberos';
+                    return (
+                      <div
+                        key={blk.id}
+                        className="flex items-center justify-between px-3 py-2 rounded-xl bg-[#141923] border border-amber-900/30 text-xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Moon className="w-3.5 h-3.5 text-amber-400" />
+                          <span className="text-white font-bold">{bName}</span>
+                          <span className="text-[10px] text-amber-400">({blk.reason || 'Descanso'})</span>
+                        </div>
+                        {onUnblockSlot && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await onUnblockSlot(blk.id);
+                              showToast(`Descanso de ${bName} retirado. Ahora puede recibir citas.`, 'success');
+                            }}
+                            className="px-2.5 py-1 bg-red-950/60 hover:bg-red-900/60 text-red-300 border border-red-800/50 rounded-lg text-[11px] font-bold transition-all"
+                          >
+                            Quitar descanso
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

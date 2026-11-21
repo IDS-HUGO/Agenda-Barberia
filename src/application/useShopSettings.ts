@@ -37,23 +37,13 @@ export function useShopSettings() {
               ? data.barbers
               : DEFAULT_BARBERS;
 
-            // REPARAR: Rola DEBE estar activo (isActive: true) para que los clientes puedan agendar con él hoy, mañana y siempre
-            resolvedBarbers = resolvedBarbers.map((b: Barber) => {
-              if (b.name.toLowerCase() === 'rola' && !b.isActive) {
+            // Asegurar que todos los barberos oficiales (Hugo, Tristan, Rola, Jose) existan en el sistema
+            const existingNames = new Set(resolvedBarbers.map((b: Barber) => b.name.toLowerCase()));
+            for (const defB of DEFAULT_BARBERS) {
+              if (!existingNames.has(defB.name.toLowerCase())) {
                 needsBarberRepair = true;
-                return { ...b, isActive: true };
+                resolvedBarbers.push(defB);
               }
-              if ((b.name.toLowerCase() === 'hugo' || b.name.toLowerCase() === 'tristan') && !b.isActive) {
-                needsBarberRepair = true;
-                return { ...b, isActive: true };
-              }
-              return b;
-            });
-
-            // Asegurar que Jose esté en el equipo oficial y activo
-            if (!resolvedBarbers.some((b: Barber) => b.name.toLowerCase() === 'jose')) {
-              needsBarberRepair = true;
-              resolvedBarbers.push({ id: 'barber-4', name: 'Jose', color: '#EC4899', isActive: true });
             }
 
             const needsMigration =
@@ -140,9 +130,11 @@ export function useShopSettings() {
           ? localCfg.value.barbers
           : DEFAULT_BARBERS;
 
-        localBarbers = localBarbers.map((b) => (b.name.toLowerCase() === 'rola' ? { ...b, isActive: true } : b));
-        if (!localBarbers.some((b) => b.name.toLowerCase() === 'jose')) {
-          localBarbers.push({ id: 'barber-4', name: 'Jose', color: '#EC4899', isActive: true });
+        const existingLocalNames = new Set(localBarbers.map((b) => b.name.toLowerCase()));
+        for (const defB of DEFAULT_BARBERS) {
+          if (!existingLocalNames.has(defB.name.toLowerCase())) {
+            localBarbers.push(defB);
+          }
         }
 
         setConfig({
