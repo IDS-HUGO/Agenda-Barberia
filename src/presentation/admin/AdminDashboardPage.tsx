@@ -39,13 +39,25 @@ import { BarberSlotGrid } from './BarberSlotGrid';
 import { WalkInModal } from './WalkInModal';
 import { QrShareModal } from './QrShareModal';
 import { SettingsModal } from './SettingsModal';
+import { BarberManagerModal } from './BarberManagerModal';
 import { useToast } from '../shared/ToastProvider';
 
 export const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { isAuthenticated, userEmail, logout, isFirebaseConfigured } = useBarberAuth();
-  const { config, services, updateConfig, addService, updateService, deleteService, updateBarbers } = useShopSettings();
+  const {
+    config,
+    services,
+    updateConfig,
+    addService,
+    updateService,
+    deleteService,
+    updateBarbers,
+    toggleBarberActive,
+    addBarber,
+    deleteBarber
+  } = useShopSettings();
 
   const {
     selectedDate,
@@ -75,6 +87,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFirebaseHelpOpen, setIsFirebaseHelpOpen] = useState(false);
+  const [isBarberManagerOpen, setIsBarberManagerOpen] = useState(false);
 
   // Estado para Reprogramación de Cita
   const [reschedulingApp, setReschedulingApp] = useState<Appointment | null>(null);
@@ -134,6 +147,8 @@ export const AdminDashboardPage: React.FC = () => {
     showToast('Generando reporte para imprimir / guardar en PDF...', 'info');
   };
 
+  const activeBarbers = (config.barbers || []).filter((b) => b.isActive);
+  const activeCount = activeBarbers.length;
   const activeBarber = (config.barbers || []).find((b) => b.id === selectedBarberFilter);
   const dashboardTitle = activeBarber ? `Tablero de ${activeBarber.name}` : 'Tablero del Barbero';
 
@@ -176,7 +191,7 @@ export const AdminDashboardPage: React.FC = () => {
             <h2 className="text-2xl sm:text-3xl font-extrabold text-[#F8FAFC] font-['Space_Grotesk'] tracking-tight flex items-center gap-2">
               {dashboardTitle}
               <span className="text-xs px-2.5 py-1 rounded-full bg-[#76C81C]/15 border border-[#76C81C]/40 text-[#8CE026] font-mono">
-                {activeBarber ? `💈 ${activeBarber.name}` : '3 BARBEROS EN VIVO'}
+                {activeBarber ? `💈 ${activeBarber.name}` : `${activeCount} BARBEROS EN VIVO`}
               </span>
             </h2>
             <p className="text-xs text-[#94A3B8] mt-0.5">
@@ -197,15 +212,24 @@ export const AdminDashboardPage: React.FC = () => {
             </button>
 
             <button
+              onClick={() => setIsBarberManagerOpen(true)}
+              className="min-h-[44px] flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-[#12161D] hover:bg-[#1A202C] border border-[#76C81C]/40 text-[#8CE026] text-xs font-bold transition-all active:scale-95"
+              title="Activar o desactivar quién trabaja hoy o agregar barberos"
+            >
+              <Users className="w-4 h-4" />
+              <span>Turnos / Descansos</span>
+            </button>
+
+            <button
               onClick={() => {
                 playTestSound();
                 showToast('🔔 ¡Sonido probado! Notificaciones sonoras activas en este celular.', 'success');
               }}
-              className="min-h-[44px] flex items-center gap-1.5 px-3 py-2.5 rounded-2xl bg-[#12161D] hover:bg-[#1A202C] border border-[#76C81C]/40 text-[#8CE026] text-xs font-bold transition-all active:scale-95"
+              className="min-h-[44px] flex items-center gap-1.5 px-3 py-2.5 rounded-2xl bg-[#12161D] hover:bg-[#1A202C] border border-[#1F2937] text-[#D1D5DB] hover:text-white text-xs font-semibold transition-all active:scale-95"
               title="Probar sonido de notificación de citas"
             >
-              <Volume2 className="w-4 h-4" />
-              <span>Probar Alerta</span>
+              <Volume2 className="w-4 h-4 text-[#76C81C]" />
+              <span className="hidden sm:inline">Probar Alerta</span>
             </button>
 
             <button
@@ -244,9 +268,18 @@ export const AdminDashboardPage: React.FC = () => {
               <Scissors className="w-4 h-4 text-[#76C81C]" />
               ¿Quién está usando este teléfono?
             </span>
-            <span className="text-[11px] text-[#8CE026] font-bold">
-              {activeBarber ? `💈 Modo: ${activeBarber.name}` : '👥 Viendo las 3 sillas'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-[#8CE026] font-bold">
+                {activeBarber ? `💈 Modo: ${activeBarber.name}` : `👥 Viendo ${activeCount} sillas`}
+              </span>
+              <button
+                onClick={() => setIsBarberManagerOpen(true)}
+                className="px-2.5 py-1 bg-[#1A202C] hover:bg-[#262F3F] border border-[#76C81C]/40 text-[#8CE026] rounded-xl font-bold text-[11px] flex items-center gap-1 transition-all active:scale-95"
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Turnos / Descansos</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -261,29 +294,50 @@ export const AdminDashboardPage: React.FC = () => {
                   : 'bg-[#1A202C] text-[#D1D5DB] hover:text-white border border-[#1F2937]'
               }`}
             >
-              👥 Ver Todos (3)
+              👥 Ver Todos ({activeCount})
             </button>
             {(config.barbers || []).map((barber) => {
               const isSelected = selectedBarberFilter === barber.id;
+              const isResting = !barber.isActive;
               return (
                 <button
                   key={barber.id}
                   onClick={() => {
                     setSelectedBarberFilter(barber.id);
                     playTestSound();
-                    showToast(`¡Hola ${barber.name}! Teléfono configurado para tus citas.`, 'success');
+                    showToast(
+                      isResting
+                        ? `💈 ${barber.name} está en descanso hoy.`
+                        : `¡Hola ${barber.name}! Teléfono configurado para tus citas.`,
+                      isResting ? 'info' : 'success'
+                    );
                   }}
                   className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-black shrink-0 transition-all flex items-center gap-1.5 active:scale-95 ${
                     isSelected
                       ? 'bg-[#8CE026] text-black shadow-[0_0_15px_rgba(118,200,28,0.35)]'
+                      : isResting
+                      ? 'bg-[#141820] text-[#64748B] border border-[#1F2937] opacity-80'
                       : 'bg-[#1A202C] text-[#D1D5DB] hover:text-white border border-[#1F2937]'
                   }`}
                 >
                   <span>💈</span>
                   <span>Soy {barber.name}</span>
+                  {isResting && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-950/60 text-amber-400 border border-amber-900/50">
+                      Descansa
+                    </span>
+                  )}
                 </button>
               );
             })}
+            <button
+              onClick={() => setIsBarberManagerOpen(true)}
+              className="min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 bg-[#12161D] hover:bg-[#1A202C] border border-dashed border-[#76C81C]/50 text-[#8CE026] flex items-center gap-1 transition-all"
+              title="Agregar nuevo barbero o gestionar quién descansa hoy"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Agregar / Turnos</span>
+            </button>
           </div>
         </div>
 
@@ -345,24 +399,36 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
 
         {/* Desglose individual de cada Barbero */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           {(config.barbers || []).map((b) => {
             const bStats = stats.perBarber?.[b.id] || { name: b.name, completedCount: 0, revenue: 0 };
             return (
               <div
                 key={b.id}
-                className="p-3.5 bg-[#12161D] border border-[#1F2937] rounded-2xl flex items-center justify-between"
+                className={`p-3.5 rounded-2xl flex items-center justify-between border ${
+                  b.isActive
+                    ? 'bg-[#12161D] border-[#1F2937]'
+                    : 'bg-[#0E1218] border-[#1F2937] opacity-75'
+                }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-3 h-3 rounded-full bg-[#76C81C]" />
-                  <div>
-                    <h5 className="text-xs font-extrabold text-white">💈 {b.name}</h5>
-                    <span className="text-[11px] text-[#94A3B8]">
-                      {bStats.completedCount} {bStats.completedCount === 1 ? 'corte completado' : 'cortes completados'}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: b.isActive ? (b.color || '#76C81C') : '#64748B' }}
+                  />
+                  <div className="min-w-0">
+                    <h5 className="text-xs font-extrabold text-white flex items-center gap-1.5 truncate">
+                      <span>💈 {b.name}</span>
+                      {!b.isActive && (
+                        <span className="text-[10px] text-amber-400 font-normal shrink-0">(Descanso)</span>
+                      )}
+                    </h5>
+                    <span className="text-[11px] text-[#94A3B8] block truncate">
+                      {bStats.completedCount} {bStats.completedCount === 1 ? 'corte' : 'cortes'}
                     </span>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right shrink-0">
                   <span className="text-sm font-black text-[#10B981]">${bStats.revenue} MXN</span>
                 </div>
               </div>
@@ -453,6 +519,15 @@ export const AdminDashboardPage: React.FC = () => {
         onUpdateService={updateService}
         onDeleteService={deleteService}
         onUpdateBarbers={updateBarbers}
+      />
+
+      <BarberManagerModal
+        isOpen={isBarberManagerOpen}
+        onClose={() => setIsBarberManagerOpen(false)}
+        barbers={config.barbers}
+        onToggleActive={toggleBarberActive}
+        onAddBarber={addBarber}
+        onDeleteBarber={deleteBarber}
       />
 
       {/* MODAL REPROGRAMACIÓN */}

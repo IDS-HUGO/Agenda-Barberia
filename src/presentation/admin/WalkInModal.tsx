@@ -174,7 +174,12 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
                 >
                   {activeBarbers.map((b) => (
                     <option key={b.id} value={b.id}>
-                      💈 {b.name}
+                      💈 {b.name} (Activo)
+                    </option>
+                  ))}
+                  {(barbers || []).filter((b) => !b.isActive).map((b) => (
+                    <option key={b.id} value={b.id}>
+                      💈 {b.name} (Descanso)
                     </option>
                   ))}
                 </select>

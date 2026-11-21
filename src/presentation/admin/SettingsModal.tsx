@@ -65,6 +65,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Form states for barbers
   const [barberList, setBarberList] = useState<Barber[]>(config.barbers || []);
+  const [newBarberName, setNewBarberName] = useState('');
+
+  // Sync barber list if config changes
+  React.useEffect(() => {
+    if (config.barbers) {
+      setBarberList(config.barbers);
+    }
+  }, [config.barbers]);
 
   // New service form state
   const [newServiceName, setNewServiceName] = useState('');
@@ -109,13 +117,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     );
   };
 
+  const handleToggleBarberActive = (id: string) => {
+    setBarberList((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, isActive: !b.isActive } : b))
+    );
+  };
+
+  const handleAddBarber = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBarberName.trim()) {
+      showToast('Escribe el nombre del nuevo barbero.', 'error');
+      return;
+    }
+    const colors = ['#76C81C', '#38BDF8', '#F59E0B', '#EC4899', '#A855F7', '#10B981'];
+    const newBarber: Barber = {
+      id: `barber-${Date.now()}`,
+      name: newBarberName.trim(),
+      color: colors[barberList.length % colors.length],
+      isActive: true
+    };
+    setBarberList((prev) => [...prev, newBarber]);
+    setNewBarberName('');
+    showToast(`Barbero ${newBarber.name} agregado. Recuerda hacer clic en "Guardar Cambios".`, 'info');
+  };
+
+  const handleDeleteBarber = (id: string) => {
+    if (barberList.length <= 1) {
+      showToast('Debe existir al menos un barbero.', 'error');
+      return;
+    }
+    setBarberList((prev) => prev.filter((b) => b.id !== id));
+  };
+
   const handleSaveBarbers = async () => {
     if (onUpdateBarbers) {
       await onUpdateBarbers(barberList);
     } else {
       await onUpdateConfig({ barbers: barberList });
     }
-    showToast('Equipo de barberos actualizado correctamente.', 'success');
+    showToast('Equipo de barberos guardado exitosamente.', 'success');
   };
 
   const handleAddServiceSubmit = async (e: React.FormEvent) => {
@@ -361,32 +401,88 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {activeTab === 'barbers' && (
           <div className="space-y-4">
             <p className="text-xs text-[#94A3B8]">
-              Configura los nombres de los 3 barberos activos. Los clientes podrán elegir a su barbero favorito o agendar con cualquiera disponible.
+              Configura los barberos de la tienda. Puedes activar o desactivar a un barbero para marcar si trabaja o descansa hoy, o agregar nuevos integrantes al equipo.
             </p>
 
             <div className="space-y-3">
               {barberList.map((barber, index) => (
                 <div
                   key={barber.id}
-                  className="p-3.5 bg-[#090B0E] border border-[#1F2937] rounded-2xl flex items-center gap-3"
+                  className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                    barber.isActive
+                      ? 'bg-[#090B0E] border-[#76C81C]/40'
+                      : 'bg-[#0E1218] border-[#1F2937] opacity-75'
+                  }`}
                 >
-                  <div className="w-8 h-8 rounded-xl bg-[#76C81C]/20 text-[#8CE026] flex items-center justify-center font-black text-sm shrink-0 border border-[#76C81C]/30">
-                    {index + 1}
+                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <div
+                      className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 border"
+                      style={{
+                        backgroundColor: `${barber.color || '#76C81C'}20`,
+                        borderColor: barber.color || '#76C81C',
+                        color: barber.color || '#76C81C'
+                      }}
+                    >
+                      {index + 1}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <input
+                          type="text"
+                          value={barber.name}
+                          onChange={(e) => handleBarberNameChange(barber.id, e.target.value)}
+                          className="w-full max-w-[180px] px-2.5 py-1 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-lg text-white text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <span className="text-[10px] text-[#94A3B8]">
+                        {barber.isActive ? '🟢 Trabajando hoy (recibe citas)' : '⚪ En descanso hoy (oculto)'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <label className="block text-[10px] uppercase font-bold text-[#94A3B8] mb-1">
-                      Nombre del Barbero #{index + 1}
-                    </label>
-                    <input
-                      type="text"
-                      value={barber.name}
-                      onChange={(e) => handleBarberNameChange(barber.id, e.target.value)}
-                      className="w-full min-h-[42px] px-3 py-2 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white text-xs font-semibold outline-none"
-                    />
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleBarberActive(barber.id)}
+                      className={`min-h-[36px] px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                        barber.isActive
+                          ? 'bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/40 hover:bg-[#10B981]/30'
+                          : 'bg-amber-950/40 text-amber-400 border border-amber-900/40 hover:bg-amber-950/60'
+                      }`}
+                    >
+                      {barber.isActive ? 'Activo' : 'Descanso'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteBarber(barber.id)}
+                      className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-950/30 rounded-xl transition-colors"
+                      title="Eliminar barbero"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
+
+            {/* Formulario Agregar Barbero */}
+            <form onSubmit={handleAddBarber} className="p-3 bg-[#090B0E] border border-[#1F2937] rounded-2xl flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Nombre de nuevo barbero (ej. Jose)..."
+                value={newBarberName}
+                onChange={(e) => setNewBarberName(e.target.value)}
+                className="flex-1 min-h-[40px] px-3 py-1.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+              />
+              <button
+                type="submit"
+                className="min-h-[40px] px-3 py-1.5 bg-[#1A202C] hover:bg-[#262F3F] text-[#8CE026] border border-[#76C81C]/40 rounded-xl text-xs font-bold transition-all shrink-0"
+              >
+                + Agregar
+              </button>
+            </form>
 
             <button
               type="button"
@@ -394,7 +490,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className="w-full min-h-[48px] flex items-center justify-center gap-2 py-3 px-6 rounded-2xl font-bold text-black bg-[#76C81C] hover:bg-[#8CE026] active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(118,200,28,0.25)] text-sm"
             >
               <UserCheck className="w-4 h-4" />
-              Guardar Nombres de Barberos
+              Guardar Cambios de Barberos
             </button>
           </div>
         )}

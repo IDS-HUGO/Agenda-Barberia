@@ -88,40 +88,57 @@ export interface ShopConfig {
 export const DEFAULT_BARBERS: Barber[] = [
   { id: 'barber-1', name: 'Hugo', color: '#76C81C', isActive: true },
   { id: 'barber-2', name: 'Tristan', color: '#38BDF8', isActive: true },
-  { id: 'barber-3', name: 'Rola', color: '#F59E0B', isActive: true }
+  { id: 'barber-3', name: 'Rola', color: '#F59E0B', isActive: false }, // Hoy descansa
+  { id: 'barber-4', name: 'Jose', color: '#EC4899', isActive: true }   // Hoy trabaja
 ];
 
 export const DEFAULT_SERVICES: ServiceItem[] = [
   {
-    id: 'srv-corte',
-    name: 'Corte',
+    id: 'srv-cortes-desvanecidos',
+    name: 'Cortes Desvanecidos',
     price: 180,
     durationMinutes: 40,
-    description: 'Corte clásico o degradado fade con navaja y peinado profesional.',
+    description: 'Degradado clásico o moderno (Fade) con navaja, acabado limpio y peinado.',
     isActive: true
   },
   {
     id: 'srv-corte-barba',
-    name: 'Corte y barba',
+    name: 'Corte y Barba',
     price: 230,
     durationMinutes: 60,
-    description: 'Corte completo, toalla caliente y ritual de barba con aceites.',
+    description: 'Corte completo, perfilado y ritual de barba con toalla caliente.',
     isActive: true
   },
   {
-    id: 'srv-corte-cejas',
-    name: 'Corte más cejas',
-    price: 200,
+    id: 'srv-cejas',
+    name: 'Cejas',
+    price: 20,
+    durationMinutes: 20,
+    description: 'Perfilado y diseño detallado de cejas con máquina y navaja.',
+    isActive: true
+  },
+  {
+    id: 'srv-mascarilla',
+    name: 'Mascarilla',
+    price: 50,
+    durationMinutes: 20,
+    description: 'Mascarilla facial para limpieza profunda de poros y puntos negros.',
+    isActive: true
+  },
+  {
+    id: 'srv-corte-nino',
+    name: 'Corte de Niño',
+    price: 150,
     durationMinutes: 40,
-    description: 'Corte a elección más perfilado y diseño de cejas con navaja.',
+    description: 'Corte especial para niños con paciencia, acabado limpio y peinado.',
     isActive: true
   },
   {
-    id: 'srv-servicio-completo',
-    name: 'Servicio completo',
+    id: 'srv-corte-completo',
+    name: 'Corte Completo',
     price: 300,
     durationMinutes: 60,
-    description: 'Experiencia total: Corte fade, ritual de barba, cejas y peinado VIP.',
+    description: 'Servicio total: Barba, mascarilla, masaje relajante y cejas.',
     isActive: true
   }
 ];

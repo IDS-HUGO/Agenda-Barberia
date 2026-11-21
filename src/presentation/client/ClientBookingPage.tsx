@@ -53,6 +53,8 @@ export const ClientBookingPage: React.FC = () => {
   // Hook del cliente
   const activeServices = services.filter((s) => s.isActive);
   const defaultService = activeServices[0];
+  const activeBarbers = (config.barbers || []).filter((b) => b.isActive);
+  const activeBarbersCount = activeBarbers.length;
 
   const {
     selectedDate,
@@ -193,7 +195,7 @@ export const ClientBookingPage: React.FC = () => {
               <span><strong>Domingos:</strong> 9:30 AM – 3:00 PM</span>
             </div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#76C81C]/10 border border-[#76C81C]/30 text-[#8CE026] font-extrabold">
-              <span>⚡ 3 Barberos en paralelo (40 min)</span>
+              <span>⚡ {activeBarbersCount} {activeBarbersCount === 1 ? 'Barbero' : 'Barberos'} en paralelo (40 min)</span>
             </div>
           </div>
         </div>
@@ -399,7 +401,7 @@ export const ClientBookingPage: React.FC = () => {
                   <Users className="w-4 h-4 text-[#76C81C]" />
                   ¿Con quién te gustaría atenderte?
                 </span>
-                <span className="text-[#76C81C] font-semibold text-[11px]">3 sillas en simultáneo</span>
+                <span className="text-[#76C81C] font-semibold text-[11px]">{activeBarbersCount} {activeBarbersCount === 1 ? 'silla activa' : 'sillas en simultáneo'}</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button
@@ -659,7 +661,7 @@ export const ClientBookingPage: React.FC = () => {
       <footer className="py-6 border-t border-[#1F2937] text-center text-xs text-[#64748B]">
         <p>© {new Date().getFullYear()} BARBER Y SHOPPING — Todos los derechos reservados.</p>
         <p className="text-[11px] mt-1 text-[#475569]">
-          Horarios: Lun-Sáb 9:30 AM - 7:00 PM | Dom 9:30 AM - 3:00 PM • 3 Barberos en paralelo • Tolerancia 10 min
+          Horarios: Lun-Sáb 9:30 AM - 7:00 PM | Dom 9:30 AM - 3:00 PM • {activeBarbersCount} {activeBarbersCount === 1 ? 'Barbero' : 'Barberos'} en paralelo • Tolerancia 10 min
         </p>
       </footer>
     </div>

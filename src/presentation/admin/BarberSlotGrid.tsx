@@ -358,7 +358,7 @@ export const BarberSlotGrid: React.FC<BarberSlotGridProps> = ({
                     Horario Disponible
                   </span>
                   <span className="text-[11px] text-[#94A3B8]">
-                    {slot.availableBarbersCount ?? 3} barberos libres {slot.freeBarbers ? `(${slot.freeBarbers.map(b => b.name).join(', ')})` : ''}
+                    {slot.availableBarbersCount} {slot.availableBarbersCount === 1 ? 'barbero libre' : 'barberos libres'} {slot.freeBarbers && slot.freeBarbers.length > 0 ? `(${slot.freeBarbers.map(b => b.name).join(', ')})` : ''}
                   </span>
                 </div>
               </div>

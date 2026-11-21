@@ -31,7 +31,22 @@ export function useShopSettings() {
             const hasLegacyBarbers = !data.barbers || data.barbers.some(
               (b: Barber) => b.name.toLowerCase().startsWith('barbero')
             );
-            const resolvedBarbers: Barber[] = hasLegacyBarbers ? DEFAULT_BARBERS : data.barbers;
+            const hasJose = data.barbers && data.barbers.some((b: Barber) => b.name.toLowerCase() === 'jose');
+
+            let resolvedBarbers: Barber[];
+            if (hasLegacyBarbers || !data.barbers || data.barbers.length === 0) {
+              resolvedBarbers = DEFAULT_BARBERS;
+            } else if (!hasJose) {
+              // Si no tiene a Jose registrado aún, agregarlo como activo y poner a Rola en descanso
+              resolvedBarbers = [
+                ...data.barbers.map((b: Barber) =>
+                  b.name.toLowerCase() === 'rola' ? { ...b, isActive: false } : b
+                ),
+                { id: 'barber-4', name: 'Jose', color: '#EC4899', isActive: true }
+              ];
+            } else {
+              resolvedBarbers = data.barbers;
+            }
 
             const isLegacy =
               !data.weekdayOpeningMinutes ||
@@ -41,7 +56,8 @@ export function useShopSettings() {
               data.sundayOpeningMinutes !== 570 ||
               data.sundayClosingMinutes !== 900 ||
               data.slotIntervalMinutes !== 40 ||
-              hasLegacyBarbers;
+              hasLegacyBarbers ||
+              !hasJose;
 
             const resolvedConfig: ShopConfig = {
               ...DEFAULT_SHOP_CONFIG,
@@ -74,21 +90,14 @@ export function useShopSettings() {
         unsubscribeServices = onSnapshot(servicesDocRef, (snap) => {
           if (snap.exists() && snap.data().items && snap.data().items.length > 0) {
             const rawItems = snap.data().items as ServiceItem[];
-            const isLegacy = rawItems.length !== 4 || rawItems.some(
-              (it) =>
-                it.id.includes('fade') ||
-                it.id.includes('barba-vip') ||
-                it.id.includes('combo-alien') ||
-                it.id.includes('diseno-ceja') ||
-                it.name.toLowerCase().includes('alien') ||
-                it.name.toLowerCase().includes('vip') ||
-                it.name.toLowerCase().includes('gremas') ||
-                it.name.toLowerCase().includes('clásico') ||
-                it.name.toLowerCase().includes('clasico') ||
-                it.price === 150 ||
-                it.price === 120 ||
-                it.durationMinutes === 30
-            );
+            const hasOfficial6 = rawItems.length === 6 &&
+              rawItems.some((it) => it.name.toLowerCase().includes('mascarilla') && it.price === 50) &&
+              rawItems.some((it) => (it.name.toLowerCase().includes('niño') || it.name.toLowerCase().includes('nino')) && it.price === 150) &&
+              rawItems.some((it) => it.name.toLowerCase().includes('cejas') && it.price === 20) &&
+              rawItems.some((it) => it.name.toLowerCase().includes('desvanecido') && it.price === 180) &&
+              rawItems.some((it) => it.name.toLowerCase().includes('completo') && it.price === 300);
+
+            const isLegacy = !hasOfficial6;
 
             if (isLegacy) {
               setServices(DEFAULT_SERVICES);
@@ -132,22 +141,13 @@ export function useShopSettings() {
         });
       }
       const localServices = await localDB.services.toArray();
-      const hasLegacyLocal = localServices.length !== 4 || localServices.some(
-        (it) =>
-          it.id.includes('fade') ||
-          it.id.includes('barba-vip') ||
-          it.id.includes('combo-alien') ||
-          it.id.includes('diseno-ceja') ||
-          it.name.toLowerCase().includes('alien') ||
-          it.name.toLowerCase().includes('vip') ||
-          it.name.toLowerCase().includes('gremas') ||
-          it.name.toLowerCase().includes('clásico') ||
-          it.name.toLowerCase().includes('clasico') ||
-          it.price === 150 ||
-          it.price === 120 ||
-          it.durationMinutes === 30
-      );
-      if (localServices.length > 0 && !hasLegacyLocal) {
+      const hasOfficial6Local = localServices.length === 6 &&
+        localServices.some((it) => it.name.toLowerCase().includes('mascarilla') && it.price === 50) &&
+        localServices.some((it) => (it.name.toLowerCase().includes('niño') || it.name.toLowerCase().includes('nino')) && it.price === 150) &&
+        localServices.some((it) => it.name.toLowerCase().includes('cejas') && it.price === 20) &&
+        localServices.some((it) => it.name.toLowerCase().includes('desvanecido') && it.price === 180);
+
+      if (localServices.length > 0 && hasOfficial6Local) {
         setServices(localServices);
       } else {
         await localDB.services.clear();
@@ -179,6 +179,34 @@ export function useShopSettings() {
 
   const updateBarbers = async (barbers: Barber[]) => {
     await updateConfig({ barbers });
+  };
+
+  const toggleBarberActive = async (barberId: string) => {
+    const currentBarbers = config.barbers && config.barbers.length > 0 ? config.barbers : DEFAULT_BARBERS;
+    const updated = currentBarbers.map((b) =>
+      b.id === barberId ? { ...b, isActive: !b.isActive } : b
+    );
+    await updateBarbers(updated);
+  };
+
+  const addBarber = async (name: string, color?: string) => {
+    const currentBarbers = config.barbers && config.barbers.length > 0 ? config.barbers : DEFAULT_BARBERS;
+    const colors = ['#76C81C', '#38BDF8', '#F59E0B', '#EC4899', '#A855F7', '#10B981', '#06B6D4'];
+    const newColor = color || colors[currentBarbers.length % colors.length];
+    const newBarber: Barber = {
+      id: `barber-${Date.now()}`,
+      name: name.trim(),
+      color: newColor,
+      isActive: true
+    };
+    const updated = [...currentBarbers, newBarber];
+    await updateBarbers(updated);
+  };
+
+  const deleteBarber = async (barberId: string) => {
+    const currentBarbers = config.barbers && config.barbers.length > 0 ? config.barbers : DEFAULT_BARBERS;
+    const updated = currentBarbers.filter((b) => b.id !== barberId);
+    await updateBarbers(updated);
   };
 
   const saveServices = async (updatedServices: ServiceItem[]) => {
@@ -218,6 +246,9 @@ export function useShopSettings() {
     isLoading,
     updateConfig,
     updateBarbers,
+    toggleBarberActive,
+    addBarber,
+    deleteBarber,
     addService,
     updateService,
     deleteService
