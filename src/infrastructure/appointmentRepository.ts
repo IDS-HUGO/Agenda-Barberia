@@ -62,16 +62,18 @@ function notifyLocalChange(date?: string) {
 export async function seedLocalDatabaseIfNeeded(): Promise<void> {
   try {
     const existingServices = await localDB.services.toArray();
+    const hasToallaCaliente = existingServices.some(
+      (it) => it.description && it.description.toLowerCase().includes('toalla')
+    );
     const hasLegacy = existingServices.some(
       (it) =>
         it.name.toLowerCase().includes('alien') ||
         it.name.toLowerCase().includes('vip') ||
         it.name.toLowerCase().includes('gremas') ||
-        it.price === 150 ||
         it.price === 120
     );
 
-    if (existingServices.length === 0 || hasLegacy) {
+    if (existingServices.length === 0 || hasLegacy || hasToallaCaliente) {
       await localDB.services.clear();
       await localDB.services.bulkAdd(DEFAULT_SERVICES);
     }

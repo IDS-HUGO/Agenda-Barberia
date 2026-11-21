@@ -99,13 +99,16 @@ export function useShopSettings() {
         unsubscribeServices = onSnapshot(servicesDocRef, (snap) => {
           if (snap.exists() && snap.data().items && snap.data().items.length > 0) {
             const rawItems = snap.data().items as ServiceItem[];
+            const hasToallaCaliente = rawItems.some((it) =>
+              it.description && it.description.toLowerCase().includes('toalla')
+            );
             const hasLegacyMock = rawItems.some((it) =>
               it.name.toLowerCase().includes('alien') ||
               it.name.toLowerCase().includes('gremas') ||
               it.name.toLowerCase().includes('vip')
             );
 
-            if (hasLegacyMock) {
+            if (hasLegacyMock || hasToallaCaliente) {
               setServices(DEFAULT_SERVICES);
               setDoc(servicesDocRef, { items: DEFAULT_SERVICES }).catch((err) => {
                 console.warn('[useShopSettings] No se pudo migrar DEFAULT_SERVICES en Firestore:', err);

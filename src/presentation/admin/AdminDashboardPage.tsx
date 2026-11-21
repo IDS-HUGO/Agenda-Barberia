@@ -311,12 +311,17 @@ export const AdminDashboardPage: React.FC = () => {
                   onClick={() => {
                     setSelectedBarberFilter(barber.id);
                     playTestSound();
-                    showToast(
-                      isResting
-                        ? `💈 ${barber.name} está en descanso hoy.`
-                        : `¡Hola ${barber.name}! Teléfono configurado para tus citas.`,
-                      isResting ? 'info' : 'success'
-                    );
+                    if (isResting) {
+                      showToast(`💈 ${barber.name} está en descanso hoy.`, 'info');
+                    } else {
+                      const notifAllowed = typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted';
+                      showToast(
+                        notifAllowed
+                          ? `¡Hola ${barber.name}! Alertas sonoras y notificaciones activadas para tus citas.`
+                          : `¡Hola ${barber.name}! Permite las notificaciones para que tu celular vibre y te avise de tus citas.`,
+                        'success'
+                      );
+                    }
                   }}
                   className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-black shrink-0 transition-all flex items-center gap-1.5 active:scale-95 ${
                     isSelected

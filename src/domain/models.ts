@@ -98,7 +98,7 @@ export const DEFAULT_SERVICES: ServiceItem[] = [
     name: 'Cortes Desvanecidos',
     price: 180,
     durationMinutes: 40,
-    description: 'Degradado clásico o moderno (Fade) con navaja, acabado limpio y peinado.',
+    description: 'Cortes desvanecidos.',
     isActive: true
   },
   {
@@ -106,7 +106,7 @@ export const DEFAULT_SERVICES: ServiceItem[] = [
     name: 'Corte y Barba',
     price: 230,
     durationMinutes: 60,
-    description: 'Corte completo, perfilado y ritual de barba con toalla caliente.',
+    description: 'Corte y barba.',
     isActive: true
   },
   {
@@ -114,7 +114,7 @@ export const DEFAULT_SERVICES: ServiceItem[] = [
     name: 'Cejas',
     price: 20,
     durationMinutes: 20,
-    description: 'Perfilado y diseño detallado de cejas con máquina y navaja.',
+    description: 'Cejas.',
     isActive: true
   },
   {
@@ -122,7 +122,7 @@ export const DEFAULT_SERVICES: ServiceItem[] = [
     name: 'Mascarilla',
     price: 50,
     durationMinutes: 20,
-    description: 'Mascarilla facial para limpieza profunda de poros y puntos negros.',
+    description: 'Mascarilla.',
     isActive: true
   },
   {
@@ -130,7 +130,7 @@ export const DEFAULT_SERVICES: ServiceItem[] = [
     name: 'Corte de Niño',
     price: 150,
     durationMinutes: 40,
-    description: 'Corte especial para niños con paciencia, acabado limpio y peinado.',
+    description: 'Corte de niño.',
     isActive: true
   },
   {
@@ -138,7 +138,7 @@ export const DEFAULT_SERVICES: ServiceItem[] = [
     name: 'Corte Completo',
     price: 300,
     durationMinutes: 60,
-    description: 'Servicio total: Barba, mascarilla, masaje relajante y cejas.',
+    description: '(Barba, Mascarilla, Masaje relajante, Cejas)',
     isActive: true
   }
 ];

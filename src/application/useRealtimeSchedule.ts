@@ -13,6 +13,7 @@ import {
   generateFolio,
   getTodayCanonical,
   minutesToTime,
+  minutesToTime12h,
   getCurrentDayMinutes
 } from '../domain/scheduleEngine';
 import { AppointmentRepository } from '../infrastructure/appointmentRepository';
@@ -235,43 +236,88 @@ export function useClientBooking(config: ShopConfig, defaultService?: ServiceIte
 export function useBarberSchedule(config: ShopConfig) {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayCanonical());
   const [selectedBarberFilter, setSelectedBarberFilterState] = useState<string>(() => {
-    return localStorage.getItem('barber_active_profile') || 'all';
+    try {
+      return sessionStorage.getItem('barber_active_profile') || 'all';
+    } catch {
+      return 'all';
+    }
   });
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem('barber_sound_alerts');
-    return saved !== null ? saved === 'true' : true;
+    try {
+      const saved = sessionStorage.getItem('barber_sound_alerts');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  const prevAppointmentsCountRef = useRef<number | null>(null);
+  const knownAppIdsRef = useRef<Set<string> | null>(null);
   const alertedAppIdsRef = useRef<Set<string>>(new Set());
 
   const setSelectedBarberFilter = (val: string) => {
     setSelectedBarberFilterState(val);
-    localStorage.setItem('barber_active_profile', val);
+    try {
+      sessionStorage.setItem('barber_active_profile', val);
+    } catch {
+      // Ignorar
+    }
   };
 
   useEffect(() => {
     setIsLoading(true);
-    prevAppointmentsCountRef.current = null;
+    knownAppIdsRef.current = null;
 
     const unsubApp = AppointmentRepository.subscribeToAppointments(
       selectedDate,
       (list) => {
-        if (
-          prevAppointmentsCountRef.current !== null &&
-          list.length > prevAppointmentsCountRef.current
-        ) {
-          const hasNewWeb = list.some(
-            (app) => app.source === 'client_web' && app.status === 'confirmed'
+        // Detectar citas recién agendadas en tiempo real
+        if (knownAppIdsRef.current !== null) {
+          const newAppointments = list.filter(
+            (app) => !knownAppIdsRef.current!.has(app.id) && app.status === 'confirmed'
           );
-          if (hasNewWeb && soundEnabled) {
-            playNewBookingChime();
-          }
+
+          newAppointments.forEach((newApp) => {
+            // Notificar si es "Ver todos" o si la cita está asignada a este barbero en particular
+            const isForCurrentBarber =
+              selectedBarberFilter === 'all' ||
+              newApp.barberId === selectedBarberFilter;
+
+            if (isForCurrentBarber) {
+              if (soundEnabled) {
+                playNewBookingChime();
+              }
+
+              // Vibración háptica en teléfonos móviles
+              if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                try {
+                  navigator.vibrate([200, 100, 200]);
+                } catch {}
+              }
+
+              // Notificación nativa en pantalla del celular
+              if (
+                typeof window !== 'undefined' &&
+                'Notification' in window &&
+                Notification.permission === 'granted'
+              ) {
+                try {
+                  new Notification(`💈 ¡Nueva Cita Agendada! — ${newApp.barberName}`, {
+                    body: `${newApp.clientName} apartó ${newApp.serviceName} a las ${newApp.startTime} (${minutesToTime12h(newApp.startMinutes)}).`,
+                    icon: '/logo-barber.jpeg',
+                    badge: '/logo-barber.jpeg'
+                  });
+                } catch (err) {
+                  console.warn('Error en notificación:', err);
+                }
+              }
+            }
+          });
         }
-        prevAppointmentsCountRef.current = list.length;
+
+        knownAppIdsRef.current = new Set(list.map((a) => a.id));
         setAppointments(list);
         setIsLoading(false);
       }
@@ -288,7 +334,7 @@ export function useBarberSchedule(config: ShopConfig) {
       unsubApp();
       unsubBlock();
     };
-  }, [selectedDate, soundEnabled]);
+  }, [selectedDate, soundEnabled, selectedBarberFilter]);
 
   // Alerta sonora y notificación nativa cuando comienza una cita (con tolerancia)
   useEffect(() => {
@@ -332,7 +378,11 @@ export function useBarberSchedule(config: ShopConfig) {
   const toggleSound = () => {
     setSoundEnabled((prev) => {
       const next = !prev;
-      localStorage.setItem('barber_sound_alerts', String(next));
+      try {
+        sessionStorage.setItem('barber_sound_alerts', String(next));
+      } catch {
+        // Ignorar
+      }
       if (next) playNewBookingChime();
       return next;
     });
