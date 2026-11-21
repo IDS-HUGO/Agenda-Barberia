@@ -30,7 +30,8 @@ import {
   formatFriendlyDate,
   getTodayCanonical,
   minutesToTime12h,
-  parseCanonicalDate
+  parseCanonicalDate,
+  getScheduleHoursForDate
 } from '../../domain/scheduleEngine';
 import { exportAppointmentsToPdf } from '../../infrastructure/backupService';
 import { addDays, subDays } from 'date-fns';
@@ -93,6 +94,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [reschedulingApp, setReschedulingApp] = useState<Appointment | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState(selectedDate);
   const [rescheduleStartMins, setRescheduleStartMins] = useState(570);
+  const [rescheduleBarberId, setRescheduleBarberId] = useState('barber-1');
 
   // Redirección si no está autenticado
   if (!isAuthenticated) {
@@ -124,14 +126,18 @@ export const AdminDashboardPage: React.FC = () => {
     setReschedulingApp(app);
     setRescheduleDate(app.date);
     setRescheduleStartMins(app.startMinutes);
+    setRescheduleBarberId(app.barberId || 'barber-1');
   };
 
   const handleConfirmReschedule = async () => {
     if (!reschedulingApp) return;
+    const targetBarber = (config.barbers || []).find((b) => b.id === rescheduleBarberId);
     const res = await rescheduleAppointment(
       reschedulingApp,
       rescheduleDate,
-      rescheduleStartMins
+      rescheduleStartMins,
+      rescheduleBarberId,
+      targetBarber?.name
     );
 
     if (res.success) {
@@ -472,7 +478,7 @@ export const AdminDashboardPage: React.FC = () => {
             type="date"
             value={selectedDate}
             onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
-            className="bg-[#090B0E] border border-[#1F2937] text-white text-xs px-2.5 py-1.5 rounded-xl outline-none ml-auto sm:ml-0"
+            className="bg-[#090B0E] border border-[#1F2937] text-white text-base sm:text-xs px-2.5 py-1.5 rounded-xl outline-none ml-auto sm:ml-0"
           />
         </div>
 
@@ -533,71 +539,95 @@ export const AdminDashboardPage: React.FC = () => {
       />
 
       {/* MODAL REPROGRAMACIÓN */}
-      {reschedulingApp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#12161D] border border-[#1F2937] rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">Reprogramar Cita</h3>
-              <button
-                onClick={() => setReschedulingApp(null)}
-                className="text-gray-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {reschedulingApp && (() => {
+        const { closingMinutes } = getScheduleHoursForDate(rescheduleDate, config);
+        const rescheduleOptions = Array.from({ length: 20 }, (_, i) => 570 + i * 40).filter(
+          (m) => m + reschedulingApp.durationMinutes <= closingMinutes
+        );
 
-            <p className="text-xs text-[#94A3B8]">
-              Cliente: <strong className="text-white">{reschedulingApp.clientName}</strong> ({reschedulingApp.serviceName}) • Barbero: <strong className="text-[#8CE026]">{reschedulingApp.barberName}</strong>
-            </p>
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="w-full max-w-md bg-[#12161D] border border-[#1F2937] rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90dvh] overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white font-['Space_Grotesk']">Reprogramar Cita</h3>
+                <button
+                  onClick={() => setReschedulingApp(null)}
+                  className="text-gray-400 hover:text-white p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-            <div>
-              <label className="block text-xs font-bold text-[#D1D5DB] mb-1.5 uppercase">
-                Nueva Fecha
-              </label>
-              <input
-                type="date"
-                value={rescheduleDate}
-                onChange={(e) => setRescheduleDate(e.target.value)}
-                className="w-full min-h-[44px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
-              />
-            </div>
+              <p className="text-xs text-[#94A3B8]">
+                Cliente: <strong className="text-white">{reschedulingApp.clientName}</strong> ({reschedulingApp.serviceName})
+              </p>
 
-            <div>
-              <label className="block text-xs font-bold text-[#D1D5DB] mb-1.5 uppercase">
-                Nuevo Horario
-              </label>
-              <select
-                value={rescheduleStartMins}
-                onChange={(e) => setRescheduleStartMins(Number(e.target.value))}
-                className="w-full min-h-[44px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
-              >
-                {Array.from({ length: 20 }, (_, i) => 570 + i * 40).filter((m) => m < 1140).map((mins) => (
-                  <option key={mins} value={mins}>
-                    {minutesToTime12h(mins)}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <div>
+                <label className="block text-xs font-bold text-[#D1D5DB] mb-1.5 uppercase tracking-wider">
+                  Barbero Asignado
+                </label>
+                <select
+                  value={rescheduleBarberId}
+                  onChange={(e) => setRescheduleBarberId(e.target.value)}
+                  className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-sm font-semibold"
+                >
+                  {(config.barbers || []).map((b) => (
+                    <option key={b.id} value={b.id}>
+                      💈 {b.name} {b.isActive ? '' : '(Descanso)'}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setReschedulingApp(null)}
-                className="flex-1 min-h-[44px] py-2.5 rounded-xl bg-[#1A202C] text-[#D1D5DB] text-xs font-bold"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmReschedule}
-                className="flex-1 min-h-[44px] py-2.5 rounded-xl bg-[#76C81C] hover:bg-[#8CE026] text-black text-xs font-bold transition-all"
-              >
-                Mover Cita
-              </button>
+              <div>
+                <label className="block text-xs font-bold text-[#D1D5DB] mb-1.5 uppercase tracking-wider">
+                  Nueva Fecha
+                </label>
+                <input
+                  type="date"
+                  value={rescheduleDate}
+                  onChange={(e) => setRescheduleDate(e.target.value)}
+                  className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#D1D5DB] mb-1.5 uppercase tracking-wider">
+                  Nuevo Horario
+                </label>
+                <select
+                  value={rescheduleStartMins}
+                  onChange={(e) => setRescheduleStartMins(Number(e.target.value))}
+                  className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-sm"
+                >
+                  {rescheduleOptions.map((mins) => (
+                    <option key={mins} value={mins}>
+                      {minutesToTime12h(mins)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setReschedulingApp(null)}
+                  className="flex-1 min-h-[48px] py-3 rounded-2xl bg-[#1A202C] hover:bg-[#262F3F] text-[#D1D5DB] text-xs font-bold transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmReschedule}
+                  className="flex-1 min-h-[48px] py-3 rounded-2xl bg-[#76C81C] hover:bg-[#8CE026] text-black text-xs font-black transition-all shadow-md active:scale-95"
+                >
+                  Mover Cita
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* MODAL INSTRUCCIONES FIREBASE */}
       {isFirebaseHelpOpen && (

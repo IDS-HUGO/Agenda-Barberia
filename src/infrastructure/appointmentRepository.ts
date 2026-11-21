@@ -2,6 +2,7 @@ import Dexie, { Table } from 'dexie';
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   where,
@@ -330,7 +331,7 @@ export const AppointmentRepository = {
 
         await runTransaction(db, async (transaction) => {
           const lockSnap = await transaction.get(lockDocRef);
-          type Range = { start: number; end: number; barberId: string; folio: string };
+          type Range = { id?: string; start: number; end: number; barberId: string; folio: string };
           const ranges: Range[] = lockSnap.exists()
             ? (lockSnap.data().ranges || [])
             : [];
@@ -351,6 +352,7 @@ export const AppointmentRepository = {
 
           // Registrar el nuevo bloqueo atómico
           ranges.push({
+            id: fullAppointment.id,
             start: fullAppointment.startMinutes,
             end: fullAppointment.endMinutes,
             barberId: fullAppointment.barberId,
@@ -437,13 +439,28 @@ export const AppointmentRepository = {
           // Ignorar si no existe
         }
 
+        let appFolio = folio;
+        if (!appFolio) {
+          try {
+            const snap = await getDoc(appRef);
+            if (snap.exists()) {
+              appFolio = snap.data().folio;
+            }
+          } catch {
+            // Ignorar
+          }
+        }
+
         const lockDocRef = doc(db, 'daily_locks', date);
         try {
           await runTransaction(db, async (txn) => {
             const lockSnap = await txn.get(lockDocRef);
             if (lockSnap.exists()) {
               const ranges = (lockSnap.data().ranges || []).filter(
-                (r: any) => (folio ? r.folio !== folio : true) && r.folio !== id && r.id !== id
+                (r: any) =>
+                  r.id !== id &&
+                  r.folio !== id &&
+                  (!appFolio || r.folio !== appFolio)
               );
               txn.update(lockDocRef, { ranges });
             }
@@ -467,9 +484,11 @@ export const AppointmentRepository = {
     appointment: Appointment,
     newDate: string,
     newStartMinutes: number,
-    newBarberId?: string
+    newBarberId?: string,
+    newBarberName?: string
   ): Promise<{ success: boolean; error?: string }> {
     const targetBarberId = newBarberId || appointment.barberId;
+    const resolvedBarberName = newBarberName || DEFAULT_BARBERS.find(b => b.id === targetBarberId)?.name || appointment.barberName;
     const newEndMinutes = newStartMinutes + appointment.durationMinutes;
     const newStartTime = minutesToTime(newStartMinutes);
     const newEndTime = minutesToTime(newEndMinutes);
@@ -483,7 +502,7 @@ export const AppointmentRepository = {
 
         await runTransaction(db, async (txn) => {
           const newLockSnap = await txn.get(newLockRef);
-          type Range = { start: number; end: number; barberId: string; folio: string };
+          type Range = { id?: string; start: number; end: number; barberId: string; folio: string };
           const ranges: Range[] = newLockSnap.exists()
             ? (newLockSnap.data().ranges || [])
             : [];
@@ -491,6 +510,7 @@ export const AppointmentRepository = {
           const collision = ranges.some(
             (r) =>
               r.folio !== appointment.folio &&
+              r.id !== appointment.id &&
               r.barberId === targetBarberId &&
               newStartMinutes < r.end &&
               newEndMinutes > r.start
@@ -504,14 +524,15 @@ export const AppointmentRepository = {
             const oldLockSnap = await txn.get(oldLockRef);
             if (oldLockSnap.exists()) {
               const oldRanges = (oldLockSnap.data().ranges || []).filter(
-                (r: Range) => r.folio !== appointment.folio
+                (r: Range) => r.folio !== appointment.folio && r.id !== appointment.id
               );
               txn.update(oldLockRef, { ranges: oldRanges });
             }
           }
 
-          const filteredRanges = ranges.filter((r) => r.folio !== appointment.folio);
+          const filteredRanges = ranges.filter((r) => r.folio !== appointment.folio && r.id !== appointment.id);
           filteredRanges.push({
+            id: appointment.id,
             start: newStartMinutes,
             end: newEndMinutes,
             barberId: targetBarberId,
@@ -526,6 +547,7 @@ export const AppointmentRepository = {
             startTime: newStartTime,
             endTime: newEndTime,
             barberId: targetBarberId,
+            barberName: resolvedBarberName,
             status: 'confirmed'
           });
 
@@ -554,6 +576,7 @@ export const AppointmentRepository = {
         startTime: newStartTime,
         endTime: newEndTime,
         barberId: targetBarberId,
+        barberName: resolvedBarberName,
         status: 'confirmed'
       });
 

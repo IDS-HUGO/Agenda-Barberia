@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, UserPlus, Ban, Clock, Scissors, Calendar, Users } from 'lucide-react';
-import { PublicSlot, ServiceItem, Barber, DEFAULT_BARBERS } from '../../domain/models';
+import { PublicSlot, ServiceItem, Barber, DEFAULT_BARBERS, DEFAULT_SHOP_CONFIG } from '../../domain/models';
 import { minutesToTime12h, getScheduleHoursForDate } from '../../domain/scheduleEngine';
 import { useToast } from '../shared/ToastProvider';
 
@@ -56,8 +56,9 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Generar lista de horarios desde las 09:30 hasta las 19:00 en intervalos de 40 min
-  const timeOptions = Array.from({ length: 16 }, (_, i) => 570 + i * 40).filter((mins) => mins < 1140);
+  // Generar lista de horarios dinámicos según el día (Lunes-Sábado hasta 7:00 PM, Domingo hasta 3:00 PM)
+  const { closingMinutes } = getScheduleHoursForDate(selectedDate, { ...DEFAULT_SHOP_CONFIG, barbers });
+  const timeOptions = Array.from({ length: 20 }, (_, i) => 570 + i * 40).filter((mins) => mins + 40 <= closingMinutes);
 
   const handleWalkInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,7 +158,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
                 placeholder="Ej. Roberto Martínez"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
-                className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-sm placeholder-[#64748B]"
+                className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-sm placeholder-[#64748B]"
               />
             </div>
 
@@ -170,7 +171,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
                 <select
                   value={selectedBarberId}
                   onChange={(e) => setSelectedBarberId(e.target.value)}
-                  className="w-full min-h-[48px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-xs sm:text-sm font-semibold"
+                  className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-sm font-semibold"
                 >
                   {activeBarbers.map((b) => (
                     <option key={b.id} value={b.id}>
@@ -193,7 +194,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
                 <select
                   value={startMinutes}
                   onChange={(e) => setStartMinutes(Number(e.target.value))}
-                  className="w-full min-h-[48px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-xs sm:text-sm"
+                  className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-sm"
                 >
                   {timeOptions.map((mins) => (
                     <option key={mins} value={mins}>
@@ -212,7 +213,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
               <select
                 value={selectedServiceId}
                 onChange={(e) => setSelectedServiceId(e.target.value)}
-                className="w-full min-h-[48px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-xs sm:text-sm"
+                className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-sm"
               >
                 {services.map((srv) => (
                   <option key={srv.id} value={srv.id}>
@@ -232,7 +233,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
                 placeholder="5512345678"
                 value={clientPhone}
                 onChange={(e) => setClientPhone(e.target.value.replace(/\D/g, ''))}
-                className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none font-mono text-sm placeholder-[#64748B]"
+                className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none font-mono text-base sm:text-sm placeholder-[#64748B]"
               />
             </div>
 
@@ -245,7 +246,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
                 placeholder="Ej. Pagó en efectivo / Viene por recomendación"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-sm placeholder-[#64748B]"
+                className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-sm placeholder-[#64748B]"
               />
             </div>
 
@@ -275,7 +276,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
                 <select
                   value={blockBarberId}
                   onChange={(e) => setBlockBarberId(e.target.value)}
-                  className="w-full min-h-[48px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#EF4444] rounded-2xl text-white outline-none text-xs"
+                  className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#090B0E] border border-[#1F2937] focus:border-[#EF4444] rounded-2xl text-white outline-none text-base sm:text-sm"
                 >
                   <option value="all">A todos los barberos</option>
                   {activeBarbers.map((b) => (
@@ -293,7 +294,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
                 <select
                   value={startMinutes}
                   onChange={(e) => setStartMinutes(Number(e.target.value))}
-                  className="w-full min-h-[48px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#EF4444] rounded-2xl text-white outline-none text-xs"
+                  className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#090B0E] border border-[#1F2937] focus:border-[#EF4444] rounded-2xl text-white outline-none text-base sm:text-sm"
                 >
                   {timeOptions.map((mins) => (
                     <option key={mins} value={mins}>
@@ -311,7 +312,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
               <select
                 value={blockDuration}
                 onChange={(e) => setBlockDuration(Number(e.target.value))}
-                className="w-full min-h-[48px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#EF4444] rounded-2xl text-white outline-none text-sm"
+                className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#090B0E] border border-[#1F2937] focus:border-[#EF4444] rounded-2xl text-white outline-none text-base sm:text-sm"
               >
                 <option value={40}>40 minutos (1 turno)</option>
                 <option value={80}>1 hora 20 min (2 turnos)</option>
@@ -331,7 +332,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
                 value={blockReason}
                 onChange={(e) => setBlockReason(e.target.value)}
                 placeholder="Ej. Hora de Comida, Trámite personal"
-                className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#EF4444] rounded-2xl text-white outline-none text-sm"
+                className="w-full min-h-[48px] px-4 py-3 bg-[#090B0E] border border-[#1F2937] focus:border-[#EF4444] rounded-2xl text-white outline-none text-base sm:text-sm placeholder-[#64748B]"
               />
             </div>
 

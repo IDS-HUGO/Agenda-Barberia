@@ -168,7 +168,7 @@ export const BarberManagerModal: React.FC<BarberManagerModalProps> = ({
               <select
                 value={dayOffBarberId}
                 onChange={(e) => setDayOffBarberId(e.target.value)}
-                className="flex-1 min-h-[40px] px-3 py-1.5 bg-[#12161D] border border-[#1F2937] focus:border-[#F59E0B] rounded-xl text-white outline-none text-xs font-semibold"
+                className="flex-1 min-h-[44px] px-3.5 py-2 bg-[#12161D] border border-[#1F2937] focus:border-[#F59E0B] rounded-2xl text-white outline-none text-base sm:text-xs font-semibold"
               >
                 {barbers.map((b) => (
                   <option key={b.id} value={b.id}>
@@ -181,7 +181,7 @@ export const BarberManagerModal: React.FC<BarberManagerModalProps> = ({
                 type="button"
                 disabled={isBlockingDay}
                 onClick={handleMarkDayOff}
-                className="min-h-[40px] px-4 py-1.5 bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-800/50 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+                className="min-h-[44px] px-4 py-2 bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-800/50 rounded-2xl text-xs font-bold transition-all shrink-0 active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
               >
                 <Moon className="w-3.5 h-3.5" />
                 <span>{isBlockingDay ? 'Registrando...' : 'Marcar Descanso Solo Esta Fecha'}</span>
@@ -285,7 +285,7 @@ export const BarberManagerModal: React.FC<BarberManagerModalProps> = ({
               placeholder="Nombre del nuevo barbero (ej. Jose, Carlos)"
               value={newBarberName}
               onChange={(e) => setNewBarberName(e.target.value)}
-              className="w-full min-h-[46px] px-4 py-2.5 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-sm placeholder-[#64748B]"
+              className="w-full min-h-[48px] px-4 py-2.5 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-sm placeholder-[#64748B]"
             />
 
             {/* Selector de color */}

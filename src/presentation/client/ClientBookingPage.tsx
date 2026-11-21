@@ -345,7 +345,7 @@ export const ClientBookingPage: React.FC = () => {
                       setSelectedSlot(null);
                     }
                   }}
-                  className="bg-[#090B0E] border border-[#1F2937] text-white text-xs px-2.5 py-1 rounded-xl outline-none"
+                  className="bg-[#090B0E] border border-[#1F2937] text-white text-base sm:text-xs px-2.5 py-1.5 rounded-xl outline-none"
                 />
               </div>
 
@@ -574,7 +574,7 @@ export const ClientBookingPage: React.FC = () => {
                   <Users className="w-3.5 h-3.5 text-[#76C81C]" />
                   Barbero Asignado: <span className="text-white font-bold">
                     {selectedBarberId === 'any'
-                      ? `${selectedSlot.freeBarbers[0]?.name || 'Hugo'}`
+                      ? `${selectedSlot.freeBarbers[0]?.name || 'Barbero de Guardia'}`
                       : (config.barbers.find((b) => b.id === selectedBarberId)?.name || 'Barbero')}
                   </span>
                 </p>
@@ -633,7 +633,7 @@ export const ClientBookingPage: React.FC = () => {
                   placeholder="Ej. Prefiero degradado bajo con navaja"
                   value={clientNotes}
                   onChange={(e) => setClientNotes(e.target.value)}
-                  className="w-full min-h-[48px] px-4 py-3 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-sm placeholder-[#64748B]"
+                  className="w-full min-h-[48px] px-4 py-3 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-sm placeholder-[#64748B]"
                 />
               </div>
 

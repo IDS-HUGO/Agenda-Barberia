@@ -67,12 +67,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [barberList, setBarberList] = useState<Barber[]>(config.barbers || []);
   const [newBarberName, setNewBarberName] = useState('');
 
-  // Sync barber list if config changes
+  // Sync barber list & general settings if config changes
   React.useEffect(() => {
-    if (config.barbers) {
-      setBarberList(config.barbers);
+    if (config) {
+      if (config.barbers) {
+        setBarberList(config.barbers);
+      }
+      setOpeningTime(minutesToTime(config.weekdayOpeningMinutes ?? 570));
+      setClosingTime(minutesToTime(config.weekdayClosingMinutes ?? 1140));
+      setSundayOpeningTime(minutesToTime(config.sundayOpeningMinutes ?? 570));
+      setSundayClosingTime(minutesToTime(config.sundayClosingMinutes ?? 900));
+      setSlotInterval(config.slotIntervalMinutes ?? 40);
+      setShopPhone(config.shopPhone || '');
+      setShopAddress(config.shopAddress || '');
     }
-  }, [config.barbers]);
+  }, [config]);
 
   // New service form state
   const [newServiceName, setNewServiceName] = useState('');
@@ -287,7 +296,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     required
                     value={openingTime}
                     onChange={(e) => setOpeningTime(e.target.value)}
-                    className="w-full min-h-[44px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                    className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-xs"
                   />
                 </div>
 
@@ -300,7 +309,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     required
                     value={closingTime}
                     onChange={(e) => setClosingTime(e.target.value)}
-                    className="w-full min-h-[44px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                    className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-xs"
                   />
                 </div>
               </div>
@@ -321,7 +330,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     required
                     value={sundayOpeningTime}
                     onChange={(e) => setSundayOpeningTime(e.target.value)}
-                    className="w-full min-h-[44px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                    className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-xs"
                   />
                 </div>
 
@@ -334,7 +343,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     required
                     value={sundayClosingTime}
                     onChange={(e) => setSundayClosingTime(e.target.value)}
-                    className="w-full min-h-[44px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                    className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-xs"
                   />
                 </div>
               </div>
@@ -348,7 +357,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <select
                   value={slotInterval}
                   onChange={(e) => setSlotInterval(Number(e.target.value))}
-                  className="w-full min-h-[44px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                  className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-xs"
                 >
                   <option value={30}>30 minutos</option>
                   <option value={40}>40 minutos (Recomendado oficial)</option>
@@ -367,9 +376,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   required
                   maxLength={10}
                   value={shopPhone}
-                  onChange={(e) => setShopPhone(e.target.value)}
+                  onChange={(e) => setShopPhone(e.target.value.replace(/\D/g, ''))}
                   placeholder="5512345678"
-                  className="w-full min-h-[44px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none font-mono text-xs"
+                  className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none font-mono text-base sm:text-xs"
                 />
               </div>
             </div>
@@ -383,7 +392,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 value={shopAddress}
                 onChange={(e) => setShopAddress(e.target.value)}
                 placeholder="Plaza Shopping - Local #5"
-                className="w-full min-h-[44px] px-3 py-2 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#090B0E] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-xs"
               />
             </div>
 
@@ -432,7 +441,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           type="text"
                           value={barber.name}
                           onChange={(e) => handleBarberNameChange(barber.id, e.target.value)}
-                          className="w-full max-w-[180px] px-2.5 py-1 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-lg text-white text-xs font-bold outline-none"
+                          className="w-full max-w-[200px] px-3 py-1.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white text-base sm:text-xs font-bold outline-none"
                         />
                       </div>
                       <span className="text-[10px] text-[#94A3B8]">
@@ -445,7 +454,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleToggleBarberActive(barber.id)}
-                      className={`min-h-[36px] px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                      className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                         barber.isActive
                           ? 'bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/40 hover:bg-[#10B981]/30'
                           : 'bg-amber-950/40 text-amber-400 border border-amber-900/40 hover:bg-amber-950/60'
@@ -457,7 +466,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleDeleteBarber(barber.id)}
-                      className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-950/30 rounded-xl transition-colors"
+                      className="p-2.5 text-gray-500 hover:text-red-400 hover:bg-red-950/30 rounded-xl transition-colors"
                       title="Eliminar barbero"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -474,11 +483,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 placeholder="Nombre de nuevo barbero (ej. Jose)..."
                 value={newBarberName}
                 onChange={(e) => setNewBarberName(e.target.value)}
-                className="flex-1 min-h-[40px] px-3 py-1.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                className="flex-1 min-h-[48px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-xs"
               />
               <button
                 type="submit"
-                className="min-h-[40px] px-3 py-1.5 bg-[#1A202C] hover:bg-[#262F3F] text-[#8CE026] border border-[#76C81C]/40 rounded-xl text-xs font-bold transition-all shrink-0"
+                className="min-h-[48px] px-4 py-2.5 bg-[#1A202C] hover:bg-[#262F3F] text-[#8CE026] border border-[#76C81C]/40 rounded-2xl text-xs font-bold transition-all shrink-0 active:scale-95"
               >
                 + Agregar
               </button>
@@ -563,7 +572,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     placeholder="Nombre (ej. Barba Express)"
                     value={newServiceName}
                     onChange={(e) => setNewServiceName(e.target.value)}
-                    className="w-full min-h-[44px] px-3 py-2 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                    className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-xs"
                   />
                 </div>
                 <div>
@@ -574,14 +583,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     placeholder="Precio MXN"
                     value={newServicePrice}
                     onChange={(e) => setNewServicePrice(Number(e.target.value))}
-                    className="w-full min-h-[44px] px-3 py-2 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                    className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-xs"
                   />
                 </div>
                 <div>
                   <select
                     value={newServiceDuration}
                     onChange={(e) => setNewServiceDuration(Number(e.target.value))}
-                    className="w-full min-h-[44px] px-3 py-2 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                    className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-xs"
                   >
                     <option value={20}>20 minutos</option>
                     <option value={30}>30 minutos</option>
@@ -598,7 +607,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   placeholder="Descripción corta del servicio..."
                   value={newServiceDesc}
                   onChange={(e) => setNewServiceDesc(e.target.value)}
-                  className="w-full min-h-[44px] px-3 py-2 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-xl text-white outline-none text-xs"
+                  className="w-full min-h-[48px] px-3.5 py-2.5 bg-[#12161D] border border-[#1F2937] focus:border-[#76C81C] rounded-2xl text-white outline-none text-base sm:text-xs"
                 />
               </div>
 

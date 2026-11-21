@@ -416,13 +416,15 @@ export function useBarberSchedule(config: ShopConfig) {
     appointment: Appointment,
     newDate: string,
     newStartMinutes: number,
-    newBarberId?: string
+    newBarberId?: string,
+    newBarberName?: string
   ) => {
     return await AppointmentRepository.rescheduleAppointment(
       appointment,
       newDate,
       newStartMinutes,
-      newBarberId
+      newBarberId,
+      newBarberName
     );
   };
 

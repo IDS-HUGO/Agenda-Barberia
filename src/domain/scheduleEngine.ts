@@ -118,17 +118,17 @@ export function getScheduleHoursForDate(dateStr: string, config: ShopConfig) {
   const dayOfWeek = dateObj.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
 
   if (dayOfWeek === 0) {
-    // Domingo
+    // Domingo: 9:30 AM a 3:00 PM (570 a 900 min)
     return {
-      openingMinutes: config.sundayOpeningMinutes ?? 540,
+      openingMinutes: config.sundayOpeningMinutes ?? 570,
       closingMinutes: config.sundayClosingMinutes ?? 900,
       isSunday: true
     };
   }
 
-  // Lunes a Sábado
+  // Lunes a Sábado: 9:30 AM a 7:00 PM (570 a 1140 min)
   return {
-    openingMinutes: config.weekdayOpeningMinutes ?? 540,
+    openingMinutes: config.weekdayOpeningMinutes ?? 570,
     closingMinutes: config.weekdayClosingMinutes ?? 1140,
     isSunday: false
   };

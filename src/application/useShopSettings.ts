@@ -56,13 +56,14 @@ export function useShopSettings() {
               resolvedBarbers.push({ id: 'barber-4', name: 'Jose', color: '#EC4899', isActive: true });
             }
 
-            const isLegacy =
+            const needsMigration =
               !data.weekdayOpeningMinutes ||
-              data.weekdayOpeningMinutes !== 570 ||
-              data.weekdayClosingMinutes !== 1140 ||
+              data.weekdayOpeningMinutes === 540 ||
+              !data.weekdayClosingMinutes ||
               !data.sundayOpeningMinutes ||
-              data.sundayOpeningMinutes !== 570 ||
-              data.sundayClosingMinutes !== 900 ||
+              data.sundayOpeningMinutes === 540 ||
+              !data.sundayClosingMinutes ||
+              data.sundayClosingMinutes > 900 ||
               data.slotIntervalMinutes !== 40 ||
               hasLegacyBarbers ||
               needsBarberRepair;
@@ -70,15 +71,15 @@ export function useShopSettings() {
             const resolvedConfig: ShopConfig = {
               ...DEFAULT_SHOP_CONFIG,
               ...data,
-              weekdayOpeningMinutes: 570,
-              weekdayClosingMinutes: 1140,
-              sundayOpeningMinutes: 570,
-              sundayClosingMinutes: 900,
+              weekdayOpeningMinutes: (data.weekdayOpeningMinutes && data.weekdayOpeningMinutes !== 540) ? data.weekdayOpeningMinutes : 570,
+              weekdayClosingMinutes: data.weekdayClosingMinutes || 1140,
+              sundayOpeningMinutes: (data.sundayOpeningMinutes && data.sundayOpeningMinutes !== 540) ? data.sundayOpeningMinutes : 570,
+              sundayClosingMinutes: (data.sundayClosingMinutes && data.sundayClosingMinutes <= 900) ? data.sundayClosingMinutes : 900,
               slotIntervalMinutes: 40,
               barbers: resolvedBarbers
             };
 
-            if (isLegacy) {
+            if (needsMigration) {
               setDoc(configDocRef, resolvedConfig, { merge: true }).catch((err) => {
                 console.warn('[useShopSettings] No se pudo guardar config migrada en Firestore:', err);
               });
@@ -98,16 +99,13 @@ export function useShopSettings() {
         unsubscribeServices = onSnapshot(servicesDocRef, (snap) => {
           if (snap.exists() && snap.data().items && snap.data().items.length > 0) {
             const rawItems = snap.data().items as ServiceItem[];
-            const hasOfficial6 = rawItems.length === 6 &&
-              rawItems.some((it) => it.name.toLowerCase().includes('mascarilla') && it.price === 50) &&
-              rawItems.some((it) => (it.name.toLowerCase().includes('niño') || it.name.toLowerCase().includes('nino')) && it.price === 150) &&
-              rawItems.some((it) => it.name.toLowerCase().includes('cejas') && it.price === 20) &&
-              rawItems.some((it) => it.name.toLowerCase().includes('desvanecido') && it.price === 180) &&
-              rawItems.some((it) => it.name.toLowerCase().includes('completo') && it.price === 300);
+            const hasLegacyMock = rawItems.some((it) =>
+              it.name.toLowerCase().includes('alien') ||
+              it.name.toLowerCase().includes('gremas') ||
+              it.name.toLowerCase().includes('vip')
+            );
 
-            const isLegacy = !hasOfficial6;
-
-            if (isLegacy) {
+            if (hasLegacyMock) {
               setServices(DEFAULT_SERVICES);
               setDoc(servicesDocRef, { items: DEFAULT_SERVICES }).catch((err) => {
                 console.warn('[useShopSettings] No se pudo migrar DEFAULT_SERVICES en Firestore:', err);
@@ -147,22 +145,22 @@ export function useShopSettings() {
         setConfig({
           ...DEFAULT_SHOP_CONFIG,
           ...localCfg.value,
-          weekdayOpeningMinutes: 570,
-          weekdayClosingMinutes: 1140,
-          sundayOpeningMinutes: 570,
-          sundayClosingMinutes: 900,
+          weekdayOpeningMinutes: (localCfg.value.weekdayOpeningMinutes && localCfg.value.weekdayOpeningMinutes !== 540) ? localCfg.value.weekdayOpeningMinutes : 570,
+          weekdayClosingMinutes: localCfg.value.weekdayClosingMinutes || 1140,
+          sundayOpeningMinutes: (localCfg.value.sundayOpeningMinutes && localCfg.value.sundayOpeningMinutes !== 540) ? localCfg.value.sundayOpeningMinutes : 570,
+          sundayClosingMinutes: (localCfg.value.sundayClosingMinutes && localCfg.value.sundayClosingMinutes <= 900) ? localCfg.value.sundayClosingMinutes : 900,
           slotIntervalMinutes: 40,
           barbers: localBarbers
         });
       }
       const localServices = await localDB.services.toArray();
-      const hasOfficial6Local = localServices.length === 6 &&
-        localServices.some((it) => it.name.toLowerCase().includes('mascarilla') && it.price === 50) &&
-        localServices.some((it) => (it.name.toLowerCase().includes('niño') || it.name.toLowerCase().includes('nino')) && it.price === 150) &&
-        localServices.some((it) => it.name.toLowerCase().includes('cejas') && it.price === 20) &&
-        localServices.some((it) => it.name.toLowerCase().includes('desvanecido') && it.price === 180);
+      const hasLegacyMockLocal = localServices.some((it) =>
+        it.name.toLowerCase().includes('alien') ||
+        it.name.toLowerCase().includes('gremas') ||
+        it.name.toLowerCase().includes('vip')
+      );
 
-      if (localServices.length > 0 && hasOfficial6Local) {
+      if (localServices.length > 0 && !hasLegacyMockLocal) {
         setServices(localServices);
       } else {
         await localDB.services.clear();
