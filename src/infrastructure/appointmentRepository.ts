@@ -76,9 +76,10 @@ export async function seedLocalDatabaseIfNeeded(): Promise<void> {
     }
 
     const shopConfigDoc = await localDB.settings.get('shop_config');
-    const hasLegacyBarbers = !shopConfigDoc?.value?.barbers || shopConfigDoc.value.barbers.some(
-      (b: any) => b.name?.toLowerCase().startsWith('barbero')
-    );
+    const hasLegacyBarbers = !shopConfigDoc?.value?.barbers ||
+      shopConfigDoc.value.barbers.some((b: any) => b.name?.toLowerCase().startsWith('barbero')) ||
+      shopConfigDoc.value.barbers.some((b: any) => b.name?.toLowerCase() === 'rola' && !b.isActive) ||
+      !shopConfigDoc.value.barbers.some((b: any) => b.name?.toLowerCase() === 'jose');
     const isLegacyConfig = !shopConfigDoc ||
       shopConfigDoc.value?.weekdayOpeningMinutes !== 570 ||
       shopConfigDoc.value?.weekdayClosingMinutes !== 1140 ||

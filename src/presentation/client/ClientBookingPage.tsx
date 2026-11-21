@@ -403,7 +403,7 @@ export const ClientBookingPage: React.FC = () => {
                 </span>
                 <span className="text-[#76C81C] font-semibold text-[11px]">{activeBarbersCount} {activeBarbersCount === 1 ? 'silla activa' : 'sillas en simultáneo'}</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
                 <button
                   type="button"
                   onClick={() => setSelectedBarberId('any')}

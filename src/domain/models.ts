@@ -88,8 +88,8 @@ export interface ShopConfig {
 export const DEFAULT_BARBERS: Barber[] = [
   { id: 'barber-1', name: 'Hugo', color: '#76C81C', isActive: true },
   { id: 'barber-2', name: 'Tristan', color: '#38BDF8', isActive: true },
-  { id: 'barber-3', name: 'Rola', color: '#F59E0B', isActive: false }, // Hoy descansa
-  { id: 'barber-4', name: 'Jose', color: '#EC4899', isActive: true }   // Hoy trabaja
+  { id: 'barber-3', name: 'Rola', color: '#F59E0B', isActive: true }, // Activo en el equipo
+  { id: 'barber-4', name: 'Jose', color: '#EC4899', isActive: true }  // Activo en el equipo
 ];
 
 export const DEFAULT_SERVICES: ServiceItem[] = [

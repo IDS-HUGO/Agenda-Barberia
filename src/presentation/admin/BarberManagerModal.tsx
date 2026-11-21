@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { X, Users, UserPlus, CheckCircle2, Moon, Scissors, Trash2, Sparkles } from 'lucide-react';
+import { X, Users, UserPlus, CheckCircle2, Moon, Scissors, Trash2, Calendar, AlertCircle } from 'lucide-react';
 import { Barber } from '../../domain/models';
 import { useToast } from '../shared/ToastProvider';
+import { formatFriendlyDate } from '../../domain/scheduleEngine';
 
 interface BarberManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   barbers: Barber[];
+  selectedDate?: string;
   onToggleActive: (barberId: string) => Promise<void>;
   onAddBarber: (name: string, color?: string) => Promise<void>;
   onDeleteBarber: (barberId: string) => Promise<void>;
+  onBlockSlot?: (startMinutes: number, durationMinutes: number, barberId?: string, reason?: string) => Promise<void>;
 }
 
 const COLOR_PALETTE = [
@@ -25,36 +28,62 @@ export const BarberManagerModal: React.FC<BarberManagerModalProps> = ({
   isOpen,
   onClose,
   barbers,
+  selectedDate,
   onToggleActive,
   onAddBarber,
-  onDeleteBarber
+  onDeleteBarber,
+  onBlockSlot
 }) => {
   const { showToast } = useToast();
   const [newBarberName, setNewBarberName] = useState('');
   const [selectedColor, setSelectedColor] = useState(COLOR_PALETTE[0].hex);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Estado para descanso de fecha específica
+  const [dayOffBarberId, setDayOffBarberId] = useState<string>(barbers[0]?.id || '');
+  const [isBlockingDay, setIsBlockingDay] = useState(false);
+
   if (!isOpen) return null;
 
   const activeBarbers = (barbers || []).filter((b) => b.isActive);
-  const restingBarbers = (barbers || []).filter((b) => !b.isActive);
 
   const handleToggle = async (b: Barber) => {
-    // Si es el único activo y lo intenta desactivar, advertir
-    if (b.isActive && activeBarbers.length <= 1) {
-      showToast('Debe haber al menos 1 barbero activo para recibir citas.', 'error');
-      return;
+    // Si intenta desactivar globalmente, advertir que afecta a todas las fechas
+    if (b.isActive) {
+      const confirmDeactivate = confirm(
+        `¿Estás seguro de desactivar a ${b.name} de TODO el sistema?\n\n` +
+        `⚠️ ADVERTENCIA: Si solo descansa hoy o mañana, NO lo desactives aquí, ya que los clientes no podrán agendar con él en NINGÚN DÍA futuro.\n\n` +
+        `¿Deseas desactivarlo de todas las fechas?`
+      );
+      if (!confirmDeactivate) return;
     }
 
     try {
       await onToggleActive(b.id);
       if (b.isActive) {
-        showToast(`💈 ${b.name} ahora está en DESCANSO. No recibirá nuevas citas hoy.`, 'info');
+        showToast(`💈 ${b.name} desactivado del equipo.`, 'info');
       } else {
-        showToast(`💈 ${b.name} ahora está ACTIVO y TRABAJANDO. Sus citas están abiertas.`, 'success');
+        showToast(`💈 ${b.name} ahora está ACTIVO en el equipo y recibe citas.`, 'success');
       }
     } catch {
       showToast('Error al actualizar estado del barbero.', 'error');
+    }
+  };
+
+  const handleMarkDayOff = async () => {
+    if (!onBlockSlot) return;
+    const target = barbers.find((b) => b.id === dayOffBarberId) || barbers[0];
+    if (!target) return;
+
+    setIsBlockingDay(true);
+    try {
+      // Bloquear todo el día para este barbero (10 horas = 600 min a partir de 9:30 AM = 570)
+      await onBlockSlot(570, 600, target.id, 'Descanso del día');
+      showToast(`¡Descanso registrado para ${target.name} el día de hoy! Mañana seguirá recibiendo citas normalmente.`, 'success');
+    } catch {
+      showToast('Error al registrar descanso del día.', 'error');
+    } finally {
+      setIsBlockingDay(false);
     }
   };
 
@@ -94,7 +123,7 @@ export const BarberManagerModal: React.FC<BarberManagerModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-[#12161D] border border-[#76C81C]/40 rounded-3xl p-5 sm:p-7 shadow-[0_0_40px_rgba(118,200,28,0.15)] max-h-[90dvh] overflow-y-auto">
+      <div className="relative w-full max-w-lg bg-[#12161D] border border-[#76C81C]/40 rounded-3xl p-5 sm:p-7 shadow-[0_0_40px_rgba(118,200,28,0.15)] max-h-[90dvh] overflow-y-auto space-y-5">
         
         {/* Botón Cerrar */}
         <button
@@ -105,36 +134,64 @@ export const BarberManagerModal: React.FC<BarberManagerModalProps> = ({
         </button>
 
         {/* Encabezado */}
-        <div className="pb-4 border-b border-[#1F2937] pr-8 sm:pr-0">
+        <div className="pb-3 border-b border-[#1F2937] pr-8 sm:pr-0">
           <div className="flex items-center gap-2 mb-1">
             <div className="p-2 rounded-xl bg-[#76C81C]/15 border border-[#76C81C]/30 text-[#8CE026]">
               <Users className="w-5 h-5" />
             </div>
             <h3 className="text-lg sm:text-xl font-extrabold text-white font-['Space_Grotesk']">
-              Equipo de Barberos y Turnos
+              Equipo Oficial de Barberos
             </h3>
           </div>
           <p className="text-xs text-[#94A3B8] mt-1">
-            Activa o desactiva quién trabaja hoy. El sistema abrirá o cerrará automáticamente sus horarios para los clientes.
+            Todos los barberos activos aparecen en el catálogo para que los clientes puedan agendar con ellos hoy, mañana y fechas futuras.
           </p>
 
-          {/* Resumen de estado */}
-          <div className="mt-3 flex items-center gap-2 text-xs">
-            <span className="px-2.5 py-1 rounded-xl bg-[#10B981]/15 text-[#10B981] font-bold border border-[#10B981]/30 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
-              {activeBarbers.length} {activeBarbers.length === 1 ? 'Trabajando hoy' : 'Trabajando hoy'}
-            </span>
-            {restingBarbers.length > 0 && (
-              <span className="px-2.5 py-1 rounded-xl bg-amber-950/40 text-amber-400 font-bold border border-amber-800/40 flex items-center gap-1.5">
-                <Moon className="w-3.5 h-3.5" />
-                {restingBarbers.length} {restingBarbers.length === 1 ? 'En descanso' : 'En descanso'}
-              </span>
-            )}
+          <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#10B981]/15 text-[#10B981] font-bold text-xs border border-[#10B981]/30">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>{activeBarbers.length} barberos activos en la barbería</span>
           </div>
         </div>
 
-        {/* Listado de Barberos */}
-        <div className="my-5 space-y-3">
+        {/* SECCIÓN 1: DESCANSO DE UN SOLO DÍA (SIN ELIMINAR DEL SISTEMA) */}
+        {onBlockSlot && (
+          <div className="p-3.5 bg-[#090B0E] border border-[#F59E0B]/30 rounded-2xl space-y-2.5">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#F59E0B] uppercase tracking-wider">
+              <Calendar className="w-4 h-4" />
+              <span>Marcar Descanso de un Solo Día ({selectedDate ? formatFriendlyDate(selectedDate) : 'Fecha actual'})</span>
+            </div>
+            <p className="text-[11px] text-[#94A3B8]">
+              Si un barbero solo descansa hoy pero mañana sí trabaja, usa esta opción. Sus citas de mañana y días futuros quedarán 100% protegidas y abiertas.
+            </p>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={dayOffBarberId}
+                onChange={(e) => setDayOffBarberId(e.target.value)}
+                className="flex-1 min-h-[40px] px-3 py-1.5 bg-[#12161D] border border-[#1F2937] focus:border-[#F59E0B] rounded-xl text-white outline-none text-xs font-semibold"
+              >
+                {barbers.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    💈 {b.name}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                disabled={isBlockingDay}
+                onClick={handleMarkDayOff}
+                className="min-h-[40px] px-4 py-1.5 bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-800/50 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <Moon className="w-3.5 h-3.5" />
+                <span>{isBlockingDay ? 'Registrando...' : 'Marcar Descanso Solo Esta Fecha'}</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* SECCIÓN 2: LISTADO DE BARBEROS DEL EQUIPO */}
+        <div className="space-y-3">
           <label className="block text-xs font-bold uppercase tracking-wider text-[#D1D5DB]">
             Barberos Registrados
           </label>
@@ -170,44 +227,34 @@ export const BarberManagerModal: React.FC<BarberManagerModalProps> = ({
                       </h4>
                       {isWorking ? (
                         <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-md bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/40 shrink-0">
-                          Trabaja Hoy
+                          Activo en Tienda
                         </span>
                       ) : (
-                        <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-md bg-amber-950/60 text-amber-400 border border-amber-900/50 shrink-0">
-                          Descansa Hoy
+                        <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-md bg-red-950/60 text-red-400 border border-red-900/50 shrink-0">
+                          Inactivo / Baja
                         </span>
                       )}
                     </div>
                     <p className="text-[11px] text-[#94A3B8] mt-0.5">
                       {isWorking
-                        ? 'Recibiendo citas y turnos en vivo'
-                        : 'Horarios ocultos al público'}
+                        ? 'Clientes pueden agendar con él cualquier día'
+                        : 'Oculto de todo el catálogo'}
                     </p>
                   </div>
                 </div>
 
-                {/* Botón de Toggle Activo / Descanso */}
+                {/* Acciones */}
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={() => handleToggle(b)}
-                    className={`min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-black transition-all active:scale-95 flex items-center gap-1.5 ${
+                    className={`min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center gap-1.5 ${
                       isWorking
-                        ? 'bg-[#10B981] hover:bg-[#059669] text-black shadow-md'
-                        : 'bg-[#1A202C] hover:bg-[#262F3F] text-amber-400 border border-amber-900/40'
+                        ? 'bg-[#101E19] hover:bg-[#101E19]/80 text-[#10B981] border border-[#10B981]/50'
+                        : 'bg-[#2A1215] hover:bg-[#2A1215]/80 text-red-400 border border-red-900/50'
                     }`}
                   >
-                    {isWorking ? (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span className="hidden sm:inline">Activo</span>
-                      </>
-                    ) : (
-                      <>
-                        <Moon className="w-4 h-4" />
-                        <span className="hidden sm:inline">Descanso</span>
-                      </>
-                    )}
+                    {isWorking ? 'Activo' : 'Inactivo'}
                   </button>
 
                   <button
@@ -224,7 +271,7 @@ export const BarberManagerModal: React.FC<BarberManagerModalProps> = ({
           })}
         </div>
 
-        {/* Formulario para Agregar Nuevo Barbero */}
+        {/* SECCIÓN 3: AGREGAR NUEVO BARBERO */}
         <form onSubmit={handleAddSubmit} className="pt-4 border-t border-[#1F2937] space-y-3">
           <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#8CE026]">
             <UserPlus className="w-4 h-4" />

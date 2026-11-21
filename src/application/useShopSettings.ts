@@ -31,21 +31,29 @@ export function useShopSettings() {
             const hasLegacyBarbers = !data.barbers || data.barbers.some(
               (b: Barber) => b.name.toLowerCase().startsWith('barbero')
             );
-            const hasJose = data.barbers && data.barbers.some((b: Barber) => b.name.toLowerCase() === 'jose');
 
-            let resolvedBarbers: Barber[];
-            if (hasLegacyBarbers || !data.barbers || data.barbers.length === 0) {
-              resolvedBarbers = DEFAULT_BARBERS;
-            } else if (!hasJose) {
-              // Si no tiene a Jose registrado aún, agregarlo como activo y poner a Rola en descanso
-              resolvedBarbers = [
-                ...data.barbers.map((b: Barber) =>
-                  b.name.toLowerCase() === 'rola' ? { ...b, isActive: false } : b
-                ),
-                { id: 'barber-4', name: 'Jose', color: '#EC4899', isActive: true }
-              ];
-            } else {
-              resolvedBarbers = data.barbers;
+            let needsBarberRepair = false;
+            let resolvedBarbers: Barber[] = (data.barbers && data.barbers.length > 0 && !hasLegacyBarbers)
+              ? data.barbers
+              : DEFAULT_BARBERS;
+
+            // REPARAR: Rola DEBE estar activo (isActive: true) para que los clientes puedan agendar con él hoy, mañana y siempre
+            resolvedBarbers = resolvedBarbers.map((b: Barber) => {
+              if (b.name.toLowerCase() === 'rola' && !b.isActive) {
+                needsBarberRepair = true;
+                return { ...b, isActive: true };
+              }
+              if ((b.name.toLowerCase() === 'hugo' || b.name.toLowerCase() === 'tristan') && !b.isActive) {
+                needsBarberRepair = true;
+                return { ...b, isActive: true };
+              }
+              return b;
+            });
+
+            // Asegurar que Jose esté en el equipo oficial y activo
+            if (!resolvedBarbers.some((b: Barber) => b.name.toLowerCase() === 'jose')) {
+              needsBarberRepair = true;
+              resolvedBarbers.push({ id: 'barber-4', name: 'Jose', color: '#EC4899', isActive: true });
             }
 
             const isLegacy =
@@ -57,7 +65,7 @@ export function useShopSettings() {
               data.sundayClosingMinutes !== 900 ||
               data.slotIntervalMinutes !== 40 ||
               hasLegacyBarbers ||
-              !hasJose;
+              needsBarberRepair;
 
             const resolvedConfig: ShopConfig = {
               ...DEFAULT_SHOP_CONFIG,
@@ -127,6 +135,15 @@ export function useShopSettings() {
       await seedLocalDatabaseIfNeeded();
       const localCfg = await localDB.settings.get('shop_config');
       if (localCfg) {
+        let localBarbers: Barber[] = (localCfg.value.barbers && !localCfg.value.barbers.some((b: Barber) => b.name.toLowerCase().startsWith('barbero')))
+          ? localCfg.value.barbers
+          : DEFAULT_BARBERS;
+
+        localBarbers = localBarbers.map((b) => (b.name.toLowerCase() === 'rola' ? { ...b, isActive: true } : b));
+        if (!localBarbers.some((b) => b.name.toLowerCase() === 'jose')) {
+          localBarbers.push({ id: 'barber-4', name: 'Jose', color: '#EC4899', isActive: true });
+        }
+
         setConfig({
           ...DEFAULT_SHOP_CONFIG,
           ...localCfg.value,
@@ -135,9 +152,7 @@ export function useShopSettings() {
           sundayOpeningMinutes: 570,
           sundayClosingMinutes: 900,
           slotIntervalMinutes: 40,
-          barbers: (localCfg.value.barbers && !localCfg.value.barbers.some((b: Barber) => b.name.toLowerCase().startsWith('barbero')))
-            ? localCfg.value.barbers
-            : DEFAULT_BARBERS
+          barbers: localBarbers
         });
       }
       const localServices = await localDB.services.toArray();

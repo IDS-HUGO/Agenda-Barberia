@@ -525,9 +525,11 @@ export const AdminDashboardPage: React.FC = () => {
         isOpen={isBarberManagerOpen}
         onClose={() => setIsBarberManagerOpen(false)}
         barbers={config.barbers}
+        selectedDate={selectedDate}
         onToggleActive={toggleBarberActive}
         onAddBarber={addBarber}
         onDeleteBarber={deleteBarber}
+        onBlockSlot={blockSlot}
       />
 
       {/* MODAL REPROGRAMACIÓN */}
