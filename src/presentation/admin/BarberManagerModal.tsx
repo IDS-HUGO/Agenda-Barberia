@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { X, Users, UserPlus, CheckCircle2, Moon, Scissors, Trash2, Calendar, AlertCircle, Send } from 'lucide-react';
+import { X, Users, UserPlus, CheckCircle2, Moon, Scissors, Trash2, Calendar, AlertCircle } from 'lucide-react';
 import { Barber, BlockedSlot } from '../../domain/models';
 import { useToast } from '../shared/ToastProvider';
 import { formatFriendlyDate } from '../../domain/scheduleEngine';
-import { TelegramService } from '../../infrastructure/telegramService';
 
 interface BarberManagerModalProps {
   isOpen: boolean;
@@ -47,7 +46,6 @@ export const BarberManagerModal: React.FC<BarberManagerModalProps> = ({
   // Estado para descanso de fecha específica
   const [dayOffBarberId, setDayOffBarberId] = useState<string>(barbers[0]?.id || '');
   const [isBlockingDay, setIsBlockingDay] = useState(false);
-  const [isTestingTelegram, setIsTestingTelegram] = useState(false);
 
   if (!isOpen) return null;
 
@@ -362,40 +360,6 @@ export const BarberManagerModal: React.FC<BarberManagerModalProps> = ({
             <span>{isSubmitting ? 'Guardando...' : '+ Agregar Barbero al Equipo'}</span>
           </button>
         </form>
-
-        {/* SECCIÓN 3: NOTIFICACIONES AUTOMÁTICAS TELEGRAM */}
-        <div className="p-3.5 bg-[#090B0E] border border-sky-500/30 rounded-2xl space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-sky-400 uppercase tracking-wider">
-              <Send className="w-4 h-4" />
-              <span>Notificaciones Telegram</span>
-            </div>
-            <span className="text-[10px] bg-sky-950/80 text-sky-300 border border-sky-800/40 px-2 py-0.5 rounded-full font-bold">
-              En Vivo
-            </span>
-          </div>
-          <p className="text-[11px] text-[#94A3B8]">
-            El bot <strong>@rf_barber_alertas_bot</strong> está conectado al grupo de Telegram. Cada cita agendada, cancelada o reprogramada se envía al instante con sonido y vibración al celular de los barberos.
-          </p>
-          <button
-            type="button"
-            disabled={isTestingTelegram}
-            onClick={async () => {
-              setIsTestingTelegram(true);
-              const ok = await TelegramService.sendTestMessage();
-              setIsTestingTelegram(false);
-              if (ok) {
-                showToast('🔔 ¡Alerta de prueba enviada con éxito al grupo de Telegram!', 'success');
-              } else {
-                showToast('No se pudo enviar la alerta de prueba a Telegram.', 'error');
-              }
-            }}
-            className="w-full min-h-[40px] px-3 py-2 rounded-xl bg-sky-950/60 hover:bg-sky-900/60 text-sky-300 border border-sky-800/50 text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>{isTestingTelegram ? 'Enviando alerta a Telegram...' : 'Enviar Alerta de Prueba a Telegram'}</span>
-          </button>
-        </div>
 
       </div>
     </div>

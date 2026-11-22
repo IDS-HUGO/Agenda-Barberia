@@ -229,13 +229,13 @@ export const AdminDashboardPage: React.FC = () => {
             <button
               onClick={() => {
                 playTestSound();
-                showToast('🔔 ¡Sonido probado! Notificaciones sonoras activas en este celular.', 'success');
+                showToast('🔔 Audio activado para nuevas citas en este dispositivo.', 'success');
               }}
               className="min-h-[44px] flex items-center gap-1.5 px-3 py-2.5 rounded-2xl bg-[#12161D] hover:bg-[#1A202C] border border-[#1F2937] text-[#D1D5DB] hover:text-white text-xs font-semibold transition-all active:scale-95"
-              title="Probar sonido de notificación de citas"
+              title="Activar audio de notificación de citas"
             >
               <Volume2 className="w-4 h-4 text-[#76C81C]" />
-              <span className="hidden sm:inline">Probar Alerta</span>
+              <span className="hidden sm:inline">Activar Audio</span>
             </button>
 
             <button

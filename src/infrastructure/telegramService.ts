@@ -155,22 +155,5 @@ export const TelegramService = {
       .join('\n');
 
     return await this.sendMessage(message);
-  },
-
-  /**
-   * Envía mensaje de prueba para verificar conectividad
-   */
-  async sendTestMessage(): Promise<boolean> {
-    const now = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-    const message = [
-      `🔔 <b>PRUEBA DE NOTIFICACIÓN</b> 🔔`,
-      ``,
-      `✅ El bot de Telegram está correctamente vinculado con la aplicación web.`,
-      `⏰ Hora del sistema: <b>${now}</b>`,
-      ``,
-      `<i>Equipo Barber &amp; Shopping</i>`
-    ].join('\n');
-
-    return await this.sendMessage(message);
   }
 };
