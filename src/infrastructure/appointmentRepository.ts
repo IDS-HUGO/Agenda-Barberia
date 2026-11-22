@@ -24,6 +24,7 @@ import {
   DEFAULT_BARBERS
 } from '../domain/models';
 import { minutesToTime } from '../domain/scheduleEngine';
+import { TelegramService } from './telegramService';
 
 // ==========================================
 // 1. BASE DE DATOS LOCAL OFFLINE (INDEXEDDB)
@@ -390,6 +391,11 @@ export const AppointmentRepository = {
           });
         });
 
+        // Notificar al grupo de Telegram de los barberos
+        TelegramService.notifyNewAppointment(fullAppointment).catch((err) => {
+          console.warn('[Telegram] Error al notificar nueva cita:', err);
+        });
+
         return { success: true, appointment: fullAppointment };
       } catch (err: any) {
         console.error('[Repo] Error en transacción atómica de Firebase:', err);
@@ -441,6 +447,12 @@ export const AppointmentRepository = {
 
       await localDB.appointments.add(fullAppointment);
       notifyLocalChange(fullAppointment.date);
+
+      // Notificar al grupo de Telegram de los barberos
+      TelegramService.notifyNewAppointment(fullAppointment).catch((err) => {
+        console.warn('[Telegram] Error al notificar nueva cita:', err);
+      });
+
       return { success: true, appointment: fullAppointment };
     } catch (err: any) {
       return { success: false, error: err.message || 'Error guardando localmente.' };
@@ -497,6 +509,12 @@ export const AppointmentRepository = {
         } catch (err) {
           console.warn('[Repo] Error liberando lock al cancelar:', err);
         }
+
+        // Notificar cancelación a Telegram
+        TelegramService.notifyCancelledAppointment({
+          folio: appFolio || id,
+          date
+        }).catch((err) => console.warn('[Telegram] Error al notificar cancelación:', err));
       }
       return;
     }
@@ -504,6 +522,12 @@ export const AppointmentRepository = {
     // Local
     await localDB.appointments.update(id, { status });
     notifyLocalChange(date);
+    if (status === 'cancelled') {
+      TelegramService.notifyCancelledAppointment({
+        folio: folio || id,
+        date
+      }).catch((err) => console.warn('[Telegram] Error al notificar cancelación:', err));
+    }
   },
 
   /**
@@ -590,6 +614,18 @@ export const AppointmentRepository = {
           });
         });
 
+        // Notificar reprogramación a Telegram
+        TelegramService.notifyRescheduledAppointment({
+          folio: appointment.folio,
+          clientName: appointment.clientName,
+          barberName: resolvedBarberName,
+          oldDate: appointment.date,
+          oldStartTime: appointment.startTime,
+          newDate,
+          newStartTime,
+          serviceName: appointment.serviceName
+        }).catch((err) => console.warn('[Telegram] Error al notificar reprogramación:', err));
+
         return { success: true };
       } catch (err: any) {
         return { success: false, error: err.message };
@@ -640,6 +676,18 @@ export const AppointmentRepository = {
         barberName: resolvedBarberName,
         status: 'confirmed'
       });
+
+      // Notificar reprogramación a Telegram
+      TelegramService.notifyRescheduledAppointment({
+        folio: appointment.folio,
+        clientName: appointment.clientName,
+        barberName: resolvedBarberName,
+        oldDate: appointment.date,
+        oldStartTime: appointment.startTime,
+        newDate,
+        newStartTime,
+        serviceName: appointment.serviceName
+      }).catch((err) => console.warn('[Telegram] Error al notificar reprogramación:', err));
 
       notifyLocalChange(appointment.date);
       if (appointment.date !== newDate) notifyLocalChange(newDate);
